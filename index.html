@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EDDY Pump — Pump &amp; Dredge Configurator</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>html,body{margin:0;padding:0;background:#141B23;}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useMemo } = React;
+
+/* ============================================================
+   EDDY PUMP — GUIDED PUMP & DREDGE CONFIGURATOR (PROTOTYPE)
+   ------------------------------------------------------------
+   - Branching flow: Dredging / Slurry Transfer / Sump Cleanout
+   - Blueprint-style SVG placeholders (swap for Jake's photos)
+   - "Build Sheet" rail assembles live as the user answers
+   - Final screen: recommendation + lead form
+   - Lead form: wire handleSubmit() to HubSpot Forms API
+   ============================================================ */
+
+/* ---------- Blueprint placeholder art ---------- */
+const Art = ({ kind }) => {
+  const s = { stroke: "#F26A21", strokeWidth: 2.5, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" };
+  const d = { stroke: "#5B6B7C", strokeWidth: 1.5, fill: "none", strokeDasharray: "4 4" };
+  const art = {
+    dredging: (
+      <g>
+        <path {...d} d="M10 55 H150" />
+        <path {...s} d="M10 55 Q25 48 40 55 T70 55 T100 55 T130 55 T150 55" />
+        <path {...s} d="M60 55 L60 85 M60 85 L95 85 L100 95 L55 95 Z" />
+        <circle {...s} cx="77" cy="90" r="4" />
+        <path {...d} d="M60 55 L45 20 L110 20 L100 55" />
+      </g>
+    ),
+    slurry: (
+      <g>
+        <circle {...s} cx="70" cy="60" r="26" />
+        <circle {...s} cx="70" cy="60" r="9" />
+        <path {...s} d="M96 52 H140 V38 H150" />
+        <path {...s} d="M70 86 V100 H30" />
+        <path {...d} d="M70 60 L92 44 M70 60 L88 78 M70 60 L48 74" />
+      </g>
+    ),
+    sump: (
+      <g>
+        <path {...s} d="M25 30 V95 H135 V30" />
+        <path {...d} d="M25 70 H135" />
+        <path {...s} d="M70 20 V60 M60 60 H80 L84 78 H56 Z" />
+        <path {...s} d="M56 88 Q66 82 76 88 T96 88" />
+      </g>
+    ),
+    sand: (
+      <g>
+        <circle {...s} cx="50" cy="70" r="10" /><circle {...s} cx="78" cy="80" r="7" />
+        <circle {...s} cx="98" cy="62" r="12" /><circle {...s} cx="70" cy="50" r="5" />
+        <path {...d} d="M20 95 H140" />
+      </g>
+    ),
+    sludge: (
+      <g>
+        <path {...s} d="M25 60 Q45 45 65 60 T105 60 T135 60" />
+        <path {...s} d="M25 78 Q45 63 65 78 T105 78 T135 78" />
+        <path {...d} d="M25 95 Q45 82 65 95 T105 95 T135 95" />
+      </g>
+    ),
+    tailings: (
+      <g>
+        <path {...s} d="M30 90 L55 40 L80 90 Z" />
+        <path {...s} d="M75 90 L100 55 L125 90 Z" />
+        <path {...d} d="M20 90 H140" />
+        <circle {...s} cx="55" cy="98" r="3" /><circle {...s} cx="100" cy="98" r="3" />
+      </g>
+    ),
+    debris: (
+      <g>
+        <rect {...s} x="40" y="55" width="22" height="22" transform="rotate(15 51 66)" />
+        <path {...s} d="M85 50 L105 60 L95 80 L78 72 Z" />
+        <circle {...s} cx="120" cy="85" r="8" />
+        <path {...d} d="M20 95 H140" />
+      </g>
+    ),
+    electric: (
+      <g>
+        <path {...s} d="M78 20 L58 65 H78 L68 100 L105 52 H82 L95 20 Z" />
+        <path {...d} d="M30 60 H50 M112 60 H132" />
+      </g>
+    ),
+    hydraulic: (
+      <g>
+        <rect {...s} x="40" y="45" width="55" height="30" rx="4" />
+        <path {...s} d="M95 60 H120 M120 50 V70" />
+        <path {...s} d="M50 45 V30 H85 V45" />
+        <path {...d} d="M40 90 H120" />
+      </g>
+    ),
+    diesel: (
+      <g>
+        <rect {...s} x="35" y="50" width="60" height="40" rx="4" />
+        <path {...s} d="M50 50 V35 H60 V50" />
+        <path {...s} d="M95 60 H115 L122 68 V90 H95" />
+        <path {...d} d="M55 28 Q58 22 55 16 M65 28 Q68 22 65 16" />
+      </g>
+    ),
+    excavator: (
+      <g>
+        <rect {...s} x="30" y="65" width="45" height="25" rx="4" />
+        <circle {...s} cx="42" cy="95" r="6" /><circle {...s} cx="63" cy="95" r="6" />
+        <path {...s} d="M70 65 L95 35 L120 55 L112 62" />
+        <path {...s} d="M112 62 Q125 72 115 85 L105 78" />
+      </g>
+    ),
+    cable: (
+      <g>
+        <path {...s} d="M75 15 Q90 40 72 60" />
+        <path {...s} d="M60 60 H88 L94 82 H54 Z" />
+        <path {...s} d="M62 90 Q72 84 82 90" />
+        <path {...d} d="M20 70 Q45 62 70 70 T120 70 T145 70" />
+      </g>
+    ),
+    remote: (
+      <g>
+        <path {...s} d="M40 65 H110 L120 78 H32 Z" />
+        <circle {...s} cx="52" cy="88" r="7" /><circle {...s} cx="95" cy="88" r="7" />
+        <path {...s} d="M70 65 V50 H85" />
+        <path {...d} d="M90 48 Q100 40 112 44 M92 52 Q104 48 114 54" />
+      </g>
+    ),
+    stationary: (
+      <g>
+        <rect {...s} x="45" y="55" width="50" height="35" rx="3" />
+        <path {...s} d="M40 90 H100 M50 90 V98 M90 90 V98" />
+        <path {...s} d="M95 62 H125" />
+        <path {...d} d="M30 98 H120" />
+      </g>
+    ),
+    flow: (
+      <g>
+        <path {...s} d="M25 45 H110 M25 65 H120 M25 85 H100" />
+        <path {...s} d="M110 38 L122 45 L110 52 M120 58 L132 65 L120 72 M100 78 L112 85 L100 92" />
+      </g>
+    ),
+  };
+  return (
+    <svg viewBox="0 0 160 115" className="cardArt" aria-hidden="true">
+      {art[kind] || art.slurry}
+    </svg>
+  );
+};
+
+
+/* ---------- Photo auto-swap ----------
+   Drop a photo at images/<kind>.jpg (e.g. images/excavator.jpg)
+   and it automatically replaces the blueprint placeholder.
+   No code changes needed. */
+const CardImage = ({ kind }) => {
+  const [usePhoto, setUsePhoto] = useState(true);
+  if (!usePhoto) return <Art kind={kind} />;
+  return (
+    <img
+      className="cardArt cardPhoto"
+      src={`images/${kind}.jpg`}
+      alt=""
+      onError={() => setUsePhoto(false)}
+    />
+  );
+};
+
+/* ---------- Question + branching definitions ---------- */
+const QUESTIONS = {
+  application: {
+    key: "application",
+    eyebrow: "STEP — APPLICATION",
+    title: "What's the job?",
+    sub: "This sets the track for everything that follows.",
+    options: [
+      { id: "dredging", label: "Dredging", desc: "Ponds, harbors, canals, tailings ponds — moving material off the bottom.", art: "dredging" },
+      { id: "slurry", label: "Slurry transfer", desc: "Pumping abrasive slurry between points in a plant or process.", art: "slurry" },
+      { id: "sump", label: "Sump & pit cleanout", desc: "Clearing settled solids from sumps, pits, and clarifiers.", art: "sump" },
+    ],
+  },
+  material: {
+    key: "material",
+    eyebrow: "STEP — MATERIAL",
+    title: "What are you moving?",
+    sub: "Pick the closest match to your worst-case material.",
+    options: [
+      { id: "sand", label: "Sand & gravel", desc: "High-abrasion granular material, fast-settling.", art: "sand" },
+      { id: "sludge", label: "Sludge & fines", desc: "Organics, silt, paper fines, high-viscosity muck.", art: "sludge" },
+      { id: "tailings", label: "Mine tailings / slurry", desc: "Dense industrial slurry, high specific gravity.", art: "tailings" },
+      { id: "debris", label: "Debris-laden material", desc: "Rock, trash, rags — large solids in the flow.", art: "debris" },
+    ],
+  },
+  production_dredge: {
+    key: "production",
+    eyebrow: "STEP — PRODUCTION",
+    title: "How much material per hour?",
+    sub: "Rough solids production target. We'll size the family, engineering confirms the number.",
+    options: [
+      { id: "p_low", label: "Up to 70 cu yd/hr", desc: "Small ponds, maintenance dredging.", art: "flow" },
+      { id: "p_mid", label: "70–200 cu yd/hr", desc: "Mid-size projects, canals, marinas.", art: "flow" },
+      { id: "p_high", label: "200+ cu yd/hr", desc: "Large-scale or continuous production dredging.", art: "flow" },
+    ],
+  },
+  flow_slurry: {
+    key: "production",
+    eyebrow: "STEP — FLOW",
+    title: "What flow rate do you need?",
+    sub: "Ballpark is fine — this maps to a pump size class.",
+    options: [
+      { id: "f_low", label: "Up to 800 GPM", desc: "Smaller process lines.", art: "flow" },
+      { id: "f_mid", label: "800–3,000 GPM", desc: "Typical plant transfer duty.", art: "flow" },
+      { id: "f_high", label: "3,000+ GPM", desc: "High-volume transfer.", art: "flow" },
+    ],
+  },
+  power: {
+    key: "power",
+    eyebrow: "STEP — POWER",
+    title: "What power is available on site?",
+    sub: "Drives the drive.",
+    options: [
+      { id: "electric", label: "Electric", desc: "Plant power or generator on site.", art: "electric" },
+      { id: "hydraulic", label: "Hydraulic", desc: "Excavator or hydraulic power unit available.", art: "hydraulic" },
+      { id: "diesel", label: "Diesel / self-contained", desc: "No site power — bring the power with the unit.", art: "diesel" },
+    ],
+  },
+  deployment: {
+    key: "deployment",
+    eyebrow: "STEP — DEPLOYMENT",
+    title: "How will the pump reach the material?",
+    sub: "Deployment method usually decides the product family.",
+    options: [
+      { id: "excavator", label: "Excavator attachment", desc: "Mounts to the stick of an excavator you already run.", art: "excavator" },
+      { id: "cable", label: "Cable-deployed", desc: "Lowered by crane or cable from shore, barge, or gantry.", art: "cable" },
+      { id: "remote", label: "Remote-operated dredge", desc: "Crewless, self-propelled unit driven from shore.", art: "remote" },
+    ],
+  },
+  deployment_sump: {
+    key: "deployment",
+    eyebrow: "STEP — DEPLOYMENT",
+    title: "How will the pump reach the material?",
+    options: [
+      { id: "excavator", label: "Excavator attachment", desc: "Reach into the pit from the machine you already have.", art: "excavator" },
+      { id: "cable", label: "Cable-deployed", desc: "Lower it in, pump it down, lift it out.", art: "cable" },
+      { id: "stationary", label: "Stationary install", desc: "Permanently mounted at the sump.", art: "stationary" },
+    ],
+  },
+};
+
+/* Flow order per application track */
+const TRACKS = {
+  dredging: ["application", "material", "production_dredge", "power", "deployment"],
+  slurry: ["application", "material", "flow_slurry", "power"],
+  sump: ["application", "material", "power", "deployment_sump"],
+};
+
+/* ---------- Recommendation engine (family-level) ---------- */
+/* No public pricing — pricing follows via sales engineer outreach after form submit */
+function recommend(a) {
+  const { application, production, power, deployment } = a;
+
+  if (application === "dredging") {
+    if (deployment === "remote") {
+      return {
+        family: "Subdredge™ Remote-Operated Dredge",
+        art: "remote",
+        blurb:
+          "A crewless, self-propelled dredge driven from shore — built around the EDDY Pump non-clog design for high-solids production without divers or support boats.",
+        specs: ["Remote operation from shore", "EDDY Pump non-clog rotor", "High-solids slurry output"],
+      };
+    }
+    if (deployment === "excavator") {
+      return {
+        family: "Excavator Dredge Pump Attachment",
+        art: "excavator",
+        blurb:
+          "Mounts to the stick of your excavator and turns it into a production dredge. Hydraulic drive runs straight off the machine's auxiliary circuit.",
+        specs: ["Runs off excavator hydraulics", "Cutterhead options for hard-packed material", "Rapid mobilization"],
+      };
+    }
+    return {
+      family: "Cable-Deployed Dredge Pump",
+      art: "cable",
+      blurb:
+        "Lowered by crane or cable from shore, barge, or gantry. Available in electric or hydraulic drive with water-jetting rings for fast-settling material.",
+      specs: [power === "electric" ? "Electric submersible drive" : "Hydraulic drive w/ HPU", "Optional water jetting ring", "High-solids, non-clog design"],
+    };
+  }
+
+  if (application === "slurry") {
+    const size = production === "f_high" ? { s: '10"–12"' } : production === "f_mid" ? { s: '6"–8"' } : { s: '2"–4"' };
+    return {
+      family: `EDDY Pump HD Slurry Pump — ${size.s} Class`,
+      art: "slurry",
+      blurb:
+        "The core EDDY Pump design: a geometrically induced eddy current instead of a close-tolerance impeller — high solids tolerance, low wear, no clogging on the material you described.",
+      specs: [`${size.s} discharge class`, power === "diesel" ? "Diesel drive package" : power === "hydraulic" ? "Hydraulic drive package" : "Electric motor drive", "Passes large solids without clogging"],
+    };
+  }
+
+  // sump
+  if (deployment === "stationary") {
+    return {
+      family: "Stationary Sump Pump System",
+      art: "stationary",
+      blurb:
+        "Permanently installed EDDY Pump sized to your sump, with the same non-clog tolerance for grit, rags, and settled solids that defeats standard sump pumps.",
+      specs: ["Fixed installation", "Handles settled, compacted solids", "Low-maintenance wear profile"],
+    };
+  }
+  if (deployment === "excavator") {
+    return {
+      family: "Excavator-Mounted Pump Attachment",
+      art: "excavator",
+      blurb:
+        "Reach into pits and sumps from the excavator you already run — no confined-space entry, no vac trucks on standby.",
+      specs: ["Runs off excavator hydraulics", "No confined-space entry", "Agitates and pumps compacted material"],
+    };
+  }
+  return {
+    family: "Cable-Deployed Pit Cleanout Pump",
+    art: "cable",
+    blurb:
+      "Lower it into the sump, pump it down to the floor, lift it out. Electric or hydraulic drive, built for grit-heavy settled solids.",
+    specs: [power === "electric" ? "Electric submersible drive" : "Hydraulic drive w/ HPU", "Pumps down to low water level", "Non-clog high-solids design"],
+  };
+}
+
+/* Human-readable labels for the build sheet */
+function labelFor(qid, optId) {
+  const q = QUESTIONS[qid];
+  const o = q?.options.find((x) => x.id === optId);
+  return o ? o.label : optId;
+}
+
+const SHEET_ROWS = [
+  { key: "application", label: "APPLICATION" },
+  { key: "material", label: "MATERIAL" },
+  { key: "production", label: "PRODUCTION" },
+  { key: "power", label: "POWER" },
+  { key: "deployment", label: "DEPLOYMENT" },
+];
+
+function EddyConfigurator() {
+  const [answers, setAnswers] = useState({});
+  const [stepIdx, setStepIdx] = useState(0);
+  const [done, setDone] = useState(false);
+  const [lead, setLead] = useState({ name: "", email: "", company: "", phone: "" });
+  const [submitted, setSubmitted] = useState(false);
+
+  const track = answers.application ? TRACKS[answers.application] : ["application"];
+  const currentQid = track[stepIdx];
+  const question = QUESTIONS[currentQid];
+  const totalSteps = answers.application ? track.length : 5;
+
+  const rec = useMemo(() => (done ? recommend(answers) : null), [done, answers]);
+
+  const pick = (opt) => {
+    const q = QUESTIONS[currentQid];
+    const next = { ...answers, [q.key]: opt.id };
+    if (q.key === "application" && answers.application && answers.application !== opt.id) {
+      setAnswers({ application: opt.id });
+    } else {
+      setAnswers(next);
+    }
+    const newTrack = TRACKS[q.key === "application" ? opt.id : next.application];
+    if (stepIdx + 1 >= newTrack.length) setDone(true);
+    else setStepIdx(stepIdx + 1);
+  };
+
+  const back = () => {
+    if (done) { setDone(false); setSubmitted(false); return; }
+    if (stepIdx > 0) setStepIdx(stepIdx - 1);
+  };
+
+  const restart = () => { setAnswers({}); setStepIdx(0); setDone(false); setSubmitted(false); setLead({ name: "", email: "", company: "", phone: "" }); };
+
+  const handleSubmit = () => {
+    if (!lead.name || !lead.email) return;
+    /* ============================================
+       PRODUCTION: replace with HubSpot Forms API —
+       POST https://api.hsforms.com/submissions/v3/integration/submit/{portalId}/{formGuid}
+       Include configurator answers as custom contact properties
+       so the deal record carries the full build sheet.
+       ============================================ */
+    setSubmitted(true);
+  };
+
+  const answeredRows = SHEET_ROWS.filter((r) => answers[r.key]);
+  const qidForKey = { application: "application", material: "material", production: answers.application === "slurry" ? "flow_slurry" : "production_dredge", power: "power", deployment: answers.application === "sump" ? "deployment_sump" : "deployment" };
+
+  return (
+    <div className="cfg">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+        .cfg { min-height: 100vh; background: #141B23; color: #E8EBEE; font-family: 'Barlow', sans-serif;
+               --orange: #F26A21; --steel: #5B6B7C; --panel: #1C2530; --line: #2A3644; --paper: #E8EBEE; }
+        .cfg * { box-sizing: border-box; }
+
+        .topbar { display:flex; align-items:center; justify-content:space-between; padding: 18px 28px; border-bottom: 1px solid var(--line); }
+        .logo { font-family:'Barlow Condensed'; font-weight:700; font-size:26px; letter-spacing:0.06em; }
+        .logo span { color: var(--orange); }
+        .logo small { display:block; font-family:'IBM Plex Mono'; font-size:10px; letter-spacing:0.28em; color: var(--steel); font-weight:400; margin-top:2px; }
+        .restart { background:none; border:1px solid var(--line); color:var(--steel); font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:0.12em; padding:8px 14px; cursor:pointer; transition: border-color .2s, color .2s; }
+        .restart:hover, .restart:focus-visible { border-color: var(--orange); color: var(--paper); outline:none; }
+
+        .progress { display:flex; gap:6px; padding: 0 28px; margin-top:18px; }
+        .tick { height:3px; flex:1; background: var(--line); position:relative; }
+        .tick.on { background: var(--orange); }
+
+        .main { display:flex; gap:0; align-items:flex-start; max-width: 1180px; margin: 0 auto; padding: 34px 28px 80px; }
+        .stage { flex: 1 1 auto; min-width: 0; }
+
+        .eyebrow { font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:0.3em; color: var(--orange); margin-bottom: 10px; }
+        h1.q { font-family:'Barlow Condensed'; font-weight:600; font-size: clamp(30px, 4.5vw, 46px); line-height:1.05; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.015em; }
+        .sub { color: #9AA7B4; font-size: 15px; margin: 0 0 30px; max-width: 52ch; }
+
+        .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+        .card { text-align:left; background: var(--panel); border: 1px solid var(--line); padding: 0 0 18px; cursor:pointer; color: inherit; font-family:inherit;
+                transition: transform .15s ease, border-color .15s ease; display:flex; flex-direction:column; }
+        .card:hover, .card:focus-visible { border-color: var(--orange); transform: translateY(-3px); outline: none; }
+        .cardArt { width:100%; height:auto; display:block; background: #16202B; border-bottom:1px solid var(--line); }
+        .cardPhoto { aspect-ratio: 160/115; object-fit: cover; }
+        .card h3 { font-family:'Barlow Condensed'; font-size: 21px; font-weight:600; letter-spacing:0.02em; margin: 14px 16px 4px; text-transform: uppercase; }
+        .card p { margin: 0 16px; font-size: 13.5px; color:#9AA7B4; line-height:1.45; }
+        .photoNote { margin-top:auto; padding: 12px 16px 0; font-family:'IBM Plex Mono'; font-size: 9.5px; letter-spacing:0.14em; color:#44525F; }
+
+        .backbtn { margin-top: 26px; background:none; border:none; color: var(--steel); font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:0.12em; cursor:pointer; padding:6px 2px; }
+        .backbtn:hover, .backbtn:focus-visible { color: var(--paper); outline:none; }
+
+        .sheet { width: 270px; flex: 0 0 270px; margin-left: 36px; background: var(--panel); border:1px solid var(--line); position: sticky; top: 24px; }
+        .sheet .head { padding: 14px 18px; border-bottom: 1px dashed var(--line); font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing: 0.26em; color: var(--orange); }
+        .sheet .row { display:flex; justify-content:space-between; gap:10px; padding: 11px 18px; border-bottom: 1px solid var(--line); font-family:'IBM Plex Mono'; font-size: 11.5px; }
+        .sheet .row .k { color: var(--steel); letter-spacing:0.08em; }
+        .sheet .row .v { color: var(--paper); text-align:right; }
+        .sheet .empty { padding: 16px 18px; color: #44525F; font-family:'IBM Plex Mono'; font-size: 11px; line-height: 1.7; }
+
+        .result { max-width: 760px; }
+        .resultCard { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--orange); padding: 0; }
+        .resultCard .cardArt { border-bottom: 1px solid var(--line); }
+        .resultBody { padding: 22px 26px 26px; }
+        h2.fam { font-family:'Barlow Condensed'; font-weight:700; font-size: 32px; margin: 0 0 4px; text-transform:uppercase; letter-spacing:0.02em; }
+        .blurb { color:#B6C0CA; line-height: 1.55; margin: 0 0 16px; font-size: 15px; }
+        .speclist { display:flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+        .chip { font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing:0.06em; border: 1px solid var(--line); color:#9AA7B4; padding: 6px 10px; }
+        .disclaimer { font-size: 12.5px; color: #6B7A88; line-height:1.6; margin-top: 18px; border-left: 2px solid var(--line); padding-left: 12px; }
+
+        .leadbox { margin-top: 26px; background: var(--panel); border: 1px solid var(--line); padding: 22px 26px; }
+        .leadbox h3 { font-family:'Barlow Condensed'; text-transform:uppercase; font-size: 20px; margin: 0 0 6px; letter-spacing:0.03em; }
+        .leadbox p { color:#9AA7B4; font-size: 13.5px; margin: 0 0 16px; }
+        .fields { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .fields input { background:#141B23; border:1px solid var(--line); color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size: 14px; width:100%; }
+        .fields input:focus-visible { outline:none; border-color: var(--orange); }
+        .cta { margin-top: 14px; background: var(--orange); border:none; color:#141B23; font-family:'Barlow Condensed'; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; font-size: 16px; padding: 13px 26px; cursor:pointer; }
+        .cta:disabled { opacity: 0.4; cursor: default; }
+        .cta:not(:disabled):hover { filter: brightness(1.08); }
+        .thanks { font-family:'IBM Plex Mono'; color: var(--orange); font-size: 13px; letter-spacing:0.06em; line-height:1.7; }
+
+        @media (max-width: 860px) {
+          .main { flex-direction: column; }
+          .sheet { width: 100%; flex: none; margin: 28px 0 0; position: static; }
+          .fields { grid-template-columns: 1fr; }
+        }
+        @media (prefers-reduced-motion: reduce) { .card, .card:hover { transition:none; transform:none; } }
+      `}</style>
+
+      <div className="topbar">
+        <div className="logo">
+          EDDY<span> PUMP</span>
+          <small>PUMP &amp; DREDGE CONFIGURATOR</small>
+        </div>
+        <button className="restart" onClick={restart}>START OVER</button>
+      </div>
+
+      <div className="progress" role="progressbar" aria-valuenow={done ? totalSteps : stepIdx} aria-valuemax={totalSteps}>
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <div key={i} className={`tick ${done || i <= stepIdx ? "on" : ""}`} />
+        ))}
+      </div>
+
+      <div className="main">
+        <div className="stage">
+          {!done && question && (
+            <>
+              <div className="eyebrow">{question.eyebrow} · {stepIdx + 1} / {totalSteps}</div>
+              <h1 className="q">{question.title}</h1>
+              {question.sub && <p className="sub">{question.sub}</p>}
+              <div className="grid">
+                {question.options.map((opt) => (
+                  <button key={opt.id} className="card" onClick={() => pick(opt)}>
+                    <CardImage kind={opt.art} />
+                    <h3>{opt.label}</h3>
+                    <p>{opt.desc}</p>
+                    <div className="photoNote">PHOTO PLACEHOLDER — SWAP FOR PRODUCT SHOT</div>
+                  </button>
+                ))}
+              </div>
+              {stepIdx > 0 && <button className="backbtn" onClick={back}>← BACK</button>}
+            </>
+          )}
+
+          {done && rec && (
+            <div className="result">
+              <div className="eyebrow">RECOMMENDED CONFIGURATION</div>
+              <div className="resultCard">
+                <CardImage kind={rec.art} />
+                <div className="resultBody">
+                  <h2 className="fam">{rec.family}</h2>
+                  <p className="blurb">{rec.blurb}</p>
+                  <div className="speclist">
+                    {rec.specs.map((s) => <span key={s} className="chip">{s}</span>)}
+                  </div>
+                  <p className="disclaimer">
+                    This recommendation identifies the right product family for your application.
+                    Final pump sizing, drive selection, and pricing are confirmed by an EDDY Pump
+                    sales engineer based on your site conditions, pumping distance, and material analysis.
+                  </p>
+                </div>
+              </div>
+
+              <div className="leadbox">
+                {!submitted ? (
+                  <>
+                    <h3>Get detailed pricing &amp; a spec sheet</h3>
+                    <p>An EDDY Pump sales engineer will review your configuration and follow up with firm numbers.</p>
+                    <div className="fields">
+                      <input placeholder="Name *" value={lead.name} onChange={(e) => setLead({ ...lead, name: e.target.value })} />
+                      <input placeholder="Work email *" type="email" value={lead.email} onChange={(e) => setLead({ ...lead, email: e.target.value })} />
+                      <input placeholder="Company" value={lead.company} onChange={(e) => setLead({ ...lead, company: e.target.value })} />
+                      <input placeholder="Phone" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} />
+                    </div>
+                    <button className="cta" disabled={!lead.name || !lead.email} onClick={handleSubmit}>
+                      Send my configuration
+                    </button>
+                  </>
+                ) : (
+                  <div className="thanks">
+                    CONFIGURATION SENT ✓<br />
+                    Your configuration is on its way to our engineering team.
+                  </div>
+                )}
+              </div>
+
+              <button className="backbtn" onClick={back}>← CHANGE MY ANSWERS</button>
+            </div>
+          )}
+        </div>
+
+        <aside className="sheet">
+          <div className="head">BUILD SHEET</div>
+          {answeredRows.length === 0 && (
+            <div className="empty">SPEC LINES POPULATE AS YOU ANSWER —<br />LIKE A TRAVELER CARD ON THE SHOP FLOOR.</div>
+          )}
+          {answeredRows.map((r) => (
+            <div className="row" key={r.key}>
+              <span className="k">{r.label}</span>
+              <span className="v">{labelFor(qidForKey[r.key], answers[r.key])}</span>
+            </div>
+          ))}
+          {done && rec && (
+            <div className="row"><span className="k">FAMILY</span><span className="v">{rec.family.split("—")[0].trim()}</span></div>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<EddyConfigurator />);
+</script>
+</body>
+</html>
