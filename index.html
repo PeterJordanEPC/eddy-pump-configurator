@@ -12,16 +12,15 @@
 <body>
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
+
 const { useState, useMemo } = React;
 
 /* ============================================================
    EDDY PUMP — GUIDED PUMP & DREDGE CONFIGURATOR (PROTOTYPE)
-   ------------------------------------------------------------
-   - Branching flow: Dredging / Slurry Transfer / Sump Cleanout
-   - Blueprint-style SVG placeholders (swap for Jake's photos)
-   - "Build Sheet" rail assembles live as the user answers
-   - Final screen: recommendation + lead form
-   - Lead form: wire handleSubmit() to HubSpot Forms API
+   Two tracks: Dredging | Process Pump
+   GPM ranges map directly to pump size class (no 5-in ever).
+   50–200 GPM + head over 120 ft => HH2000 High-Head Pump.
+   Lead form: wire handleSubmit() to HubSpot Forms API.
    ============================================================ */
 
 /* ---------- Blueprint placeholder art ---------- */
@@ -45,14 +44,6 @@ const Art = ({ kind }) => {
         <path {...s} d="M96 52 H140 V38 H150" />
         <path {...s} d="M70 86 V100 H30" />
         <path {...d} d="M70 60 L92 44 M70 60 L88 78 M70 60 L48 74" />
-      </g>
-    ),
-    sump: (
-      <g>
-        <path {...s} d="M25 30 V95 H135 V30" />
-        <path {...d} d="M25 70 H135" />
-        <path {...s} d="M70 20 V60 M60 60 H80 L84 78 H56 Z" />
-        <path {...s} d="M56 88 Q66 82 76 88 T96 88" />
       </g>
     ),
     sand: (
@@ -83,6 +74,14 @@ const Art = ({ kind }) => {
         <path {...s} d="M85 50 L105 60 L95 80 L78 72 Z" />
         <circle {...s} cx="120" cy="85" r="8" />
         <path {...d} d="M20 95 H140" />
+      </g>
+    ),
+    other: (
+      <g>
+        <circle {...s} cx="80" cy="58" r="30" />
+        <path {...s} d="M70 48 Q70 38 80 38 Q92 38 92 48 Q92 56 80 58 L80 66" />
+        <circle {...s} cx="80" cy="76" r="1.5" />
+        <path {...d} d="M20 100 H140" />
       </g>
     ),
     electric: (
@@ -131,12 +130,54 @@ const Art = ({ kind }) => {
         <path {...d} d="M90 48 Q100 40 112 44 M92 52 Q104 48 114 54" />
       </g>
     ),
-    stationary: (
+    sled: (
       <g>
-        <rect {...s} x="45" y="55" width="50" height="35" rx="3" />
-        <path {...s} d="M40 90 H100 M50 90 V98 M90 90 V98" />
-        <path {...s} d="M95 62 H125" />
-        <path {...d} d="M30 98 H120" />
+        <path {...s} d="M35 88 Q28 88 28 80 L28 78 M35 88 H115 M115 88 Q125 88 125 78" />
+        <path {...s} d="M50 88 V72 H100 V88" />
+        <path {...s} d="M60 72 L66 55 H90 L96 72" />
+        <path {...d} d="M15 65 Q40 58 65 65 T115 65 T150 65" />
+      </g>
+    ),
+    diver: (
+      <g>
+        <circle {...s} cx="75" cy="45" r="18" />
+        <circle {...s} cx="75" cy="45" r="8" />
+        <path {...s} d="M60 60 L55 90 M90 60 L95 90 M62 70 H88" />
+        <path {...d} d="M15 25 Q40 18 65 25 T115 25 T150 25" />
+      </g>
+    ),
+    auger: (
+      <g>
+        <path {...s} d="M40 75 H120" />
+        <path {...s} d="M50 60 Q58 75 50 90 M70 60 Q78 75 70 90 M90 60 Q98 75 90 90" />
+        <path {...s} d="M120 68 H135 V82 H120" />
+        <path {...d} d="M15 45 Q40 38 65 45 T115 45 T150 45" />
+      </g>
+    ),
+    flooded: (
+      <g>
+        <rect {...s} x="30" y="30" width="45" height="45" />
+        <path {...d} d="M30 42 H75" />
+        <path {...s} d="M75 65 H95" />
+        <circle {...s} cx="108" cy="65" r="13" />
+        <path {...s} d="M108 52 V38 H135" />
+      </g>
+    ),
+    submersible: (
+      <g>
+        <path {...d} d="M15 35 Q40 28 65 35 T115 35 T150 35" />
+        <path {...s} d="M62 50 H92 L98 75 H56 Z" />
+        <path {...s} d="M66 85 Q77 79 88 85" />
+        <path {...s} d="M77 50 V38 H110" />
+      </g>
+    ),
+    selfpriming: (
+      <g>
+        <circle {...s} cx="70" cy="45" r="16" />
+        <path {...s} d="M70 61 V70 L45 70 L45 90" />
+        <path {...d} d="M25 90 Q40 84 55 90 H45" />
+        <path {...s} d="M86 45 H120 V30" />
+        <path {...d} d="M30 100 H130" />
       </g>
     ),
     flow: (
@@ -153,25 +194,14 @@ const Art = ({ kind }) => {
   );
 };
 
-
-/* ---------- Photo auto-swap ----------
-   Drop a photo at images/<kind>.jpg (e.g. images/excavator.jpg)
-   and it automatically replaces the blueprint placeholder.
-   No code changes needed. */
+/* ---------- Photo auto-swap: drop images/<kind>.jpg to replace placeholders ---------- */
 const CardImage = ({ kind }) => {
   const [usePhoto, setUsePhoto] = useState(true);
   if (!usePhoto) return <Art kind={kind} />;
-  return (
-    <img
-      className="cardArt cardPhoto"
-      src={`images/${kind}.jpg`}
-      alt=""
-      onError={() => setUsePhoto(false)}
-    />
-  );
+  return <img className="cardArt cardPhoto" src={`images/${kind}.jpg`} alt="" onError={() => setUsePhoto(false)} />;
 };
 
-/* ---------- Question + branching definitions ---------- */
+/* ---------- Questions ---------- */
 const QUESTIONS = {
   application: {
     key: "application",
@@ -180,8 +210,7 @@ const QUESTIONS = {
     sub: "This sets the track for everything that follows.",
     options: [
       { id: "dredging", label: "Dredging", desc: "Ponds, harbors, canals, tailings ponds — moving material off the bottom.", art: "dredging" },
-      { id: "slurry", label: "Slurry transfer", desc: "Pumping abrasive slurry between points in a plant or process.", art: "slurry" },
-      { id: "sump", label: "Sump & pit cleanout", desc: "Clearing settled solids from sumps, pits, and clarifiers.", art: "sump" },
+      { id: "process", label: "Process Pump", desc: "Pumping from tanks or a facility — transfer and process duty.", art: "slurry" },
     ],
   },
   material: {
@@ -194,6 +223,7 @@ const QUESTIONS = {
       { id: "sludge", label: "Sludge & fines", desc: "Organics, silt, paper fines, high-viscosity muck.", art: "sludge" },
       { id: "tailings", label: "Mine tailings / slurry", desc: "Dense industrial slurry, high specific gravity.", art: "tailings" },
       { id: "debris", label: "Debris-laden material", desc: "Rock, trash, rags — large solids in the flow.", art: "debris" },
+      { id: "other", label: "Other", desc: "Something else? Tell us what you're pumping.", art: "other" },
     ],
   },
   production_dredge: {
@@ -207,15 +237,31 @@ const QUESTIONS = {
       { id: "p_high", label: "200+ cu yd/hr", desc: "Large-scale or continuous production dredging.", art: "flow" },
     ],
   },
-  flow_slurry: {
+  flow_pump: {
     key: "production",
     eyebrow: "STEP — FLOW",
     title: "What flow rate do you need?",
-    sub: "Ballpark is fine — this maps to a pump size class.",
+    sub: "Ballpark is fine — this maps directly to a pump size.",
     options: [
-      { id: "f_low", label: "Up to 800 GPM", desc: "Smaller process lines.", art: "flow" },
-      { id: "f_mid", label: "800–3,000 GPM", desc: "Typical plant transfer duty.", art: "flow" },
-      { id: "f_high", label: "3,000+ GPM", desc: "High-volume transfer.", art: "flow" },
+      { id: "f_5_50", label: "5–50 GPM", desc: "Light transfer duty.", art: "flow" },
+      { id: "f_50_200", label: "50–200 GPM", desc: "Small process lines.", art: "flow" },
+      { id: "f_200_400", label: "200–400 GPM", desc: "Light plant duty.", art: "flow" },
+      { id: "f_400_900", label: "400–900 GPM", desc: "Typical plant transfer.", art: "flow" },
+      { id: "f_900_1600", label: "900–1,600 GPM", desc: "Heavy plant duty.", art: "flow" },
+      { id: "f_1600_2500", label: "1,600–2,500 GPM", desc: "High-volume transfer.", art: "flow" },
+      { id: "f_2500_3500", label: "2,500–3,500 GPM", desc: "High-volume transfer.", art: "flow" },
+      { id: "f_3500_6000", label: "3,500–6,000 GPM", desc: "Major process lines.", art: "flow" },
+      { id: "f_6000_12000", label: "6,000–12,000 GPM", desc: "Maximum-volume duty.", art: "flow" },
+    ],
+  },
+  head: {
+    key: "head",
+    eyebrow: "STEP — DISCHARGE HEAD",
+    title: "What's your total discharge head?",
+    sub: "High-head duty in this flow range calls for a different pump.",
+    options: [
+      { id: "h_under", label: "Under 120 ft", desc: "Standard discharge head.", art: "flow" },
+      { id: "h_over", label: "Over 120 ft", desc: "High-head duty.", art: "flow" },
     ],
   },
   power: {
@@ -229,109 +275,88 @@ const QUESTIONS = {
       { id: "diesel", label: "Diesel / self-contained", desc: "No site power — bring the power with the unit.", art: "diesel" },
     ],
   },
-  deployment: {
+  deployment_dredge: {
     key: "deployment",
     eyebrow: "STEP — DEPLOYMENT",
-    title: "How will the pump reach the material?",
-    sub: "Deployment method usually decides the product family.",
+    title: "How will the dredge reach the material?",
+    sub: "Deployment method decides the product family.",
     options: [
-      { id: "excavator", label: "Excavator attachment", desc: "Mounts to the stick of an excavator you already run.", art: "excavator" },
-      { id: "cable", label: "Cable-deployed", desc: "Lowered by crane or cable from shore, barge, or gantry.", art: "cable" },
-      { id: "remote", label: "Remote-operated dredge", desc: "Crewless, self-propelled unit driven from shore.", art: "remote" },
+      { id: "excavator", label: "Excavator Attachment", desc: "Mounts to the stick of an excavator you already run.", art: "excavator" },
+      { id: "cable", label: "Cable Deployed", desc: "Lowered by crane or cable from shore, barge, or gantry.", art: "cable" },
+      { id: "remote", label: "Remote Operated Dredge", desc: "Crewless, self-propelled unit driven from shore.", art: "remote" },
+      { id: "sled", label: "Dredge Sled", desc: "Skid-mounted pump winched across the bottom.", art: "sled" },
+      { id: "diver", label: "Diver Operated Dredge", desc: "Diver-guided pump for precise, confined work.", art: "diver" },
+      { id: "auger", label: "Mini Auger ModDredge", desc: "Compact auger dredge for lagoons and tight footprints.", art: "auger" },
     ],
   },
-  deployment_sump: {
+  deployment_pump: {
     key: "deployment",
-    eyebrow: "STEP — DEPLOYMENT",
-    title: "How will the pump reach the material?",
+    eyebrow: "STEP — CONFIGURATION",
+    title: "How will the pump be installed?",
+    sub: "Pick the configuration that matches your setup.",
     options: [
-      { id: "excavator", label: "Excavator attachment", desc: "Reach into the pit from the machine you already have.", art: "excavator" },
-      { id: "cable", label: "Cable-deployed", desc: "Lower it in, pump it down, lift it out.", art: "cable" },
-      { id: "stationary", label: "Stationary install", desc: "Permanently mounted at the sump.", art: "stationary" },
+      { id: "flooded", label: "Flooded Suction Pump", desc: "Pump sits below the tank — gravity-fed suction.", art: "flooded" },
+      { id: "submersible", label: "Submersible Pump", desc: "Pump goes into the liquid.", art: "submersible" },
+      { id: "selfpriming", label: "Self-Priming Pump", desc: "Pump sits above — lifts the material itself.", art: "selfpriming" },
     ],
   },
 };
 
-/* Flow order per application track */
-const TRACKS = {
-  dredging: ["application", "material", "production_dredge", "power", "deployment"],
-  slurry: ["application", "material", "flow_slurry", "power"],
-  sump: ["application", "material", "power", "deployment_sump"],
+/* ---------- Dynamic track (head question only for 50–200 GPM) ---------- */
+function buildTrack(a) {
+  if (a.application === "dredging") return ["application", "material", "production_dredge", "power", "deployment_dredge"];
+  if (a.application === "process") {
+    const t = ["application", "material", "flow_pump"];
+    if (a.production === "f_50_200") t.push("head");
+    t.push("power", "deployment_pump");
+    return t;
+  }
+  return ["application"];
+}
+
+/* ---------- Recommendation engine ---------- */
+/* GPM -> pump size class. NOTE: 5-in pump intentionally never recommended. */
+const PUMP_SIZE = {
+  f_5_50: "1-in", f_50_200: "2-in", f_200_400: "3-in", f_400_900: "4-in",
+  f_900_1600: "6-in", f_1600_2500: "8-in", f_2500_3500: "10-in",
+  f_3500_6000: "12-in", f_6000_12000: "16-in",
 };
 
-/* ---------- Recommendation engine (family-level) ---------- */
-/* No public pricing — pricing follows via sales engineer outreach after form submit */
 function recommend(a) {
-  const { application, production, power, deployment } = a;
+  const { application, production, power, deployment, head } = a;
+  const drive = power === "diesel" ? "Diesel drive package" : power === "hydraulic" ? "Hydraulic drive package" : "Electric motor drive";
 
   if (application === "dredging") {
-    if (deployment === "remote") {
-      return {
-        family: "Subdredge™ Remote-Operated Dredge",
-        art: "remote",
-        blurb:
-          "A crewless, self-propelled dredge driven from shore — built around the EDDY Pump non-clog design for high-solids production without divers or support boats.",
-        specs: ["Remote operation from shore", "EDDY Pump non-clog rotor", "High-solids slurry output"],
-      };
-    }
-    if (deployment === "excavator") {
-      return {
-        family: "Excavator Dredge Pump Attachment",
-        art: "excavator",
-        blurb:
-          "Mounts to the stick of your excavator and turns it into a production dredge. Hydraulic drive runs straight off the machine's auxiliary circuit.",
-        specs: ["Runs off excavator hydraulics", "Cutterhead options for hard-packed material", "Rapid mobilization"],
-      };
-    }
-    return {
-      family: "Cable-Deployed Dredge Pump",
-      art: "cable",
-      blurb:
-        "Lowered by crane or cable from shore, barge, or gantry. Available in electric or hydraulic drive with water-jetting rings for fast-settling material.",
-      specs: [power === "electric" ? "Electric submersible drive" : "Hydraulic drive w/ HPU", "Optional water jetting ring", "High-solids, non-clog design"],
-    };
+    const fam = {
+      excavator: { family: "Excavator Dredge Pump Attachment", art: "excavator", blurb: "Mounts to the stick of your excavator and turns it into a production dredge. Hydraulic drive runs straight off the machine's auxiliary circuit.", specs: ["Runs off excavator hydraulics", "Cutterhead options for hard-packed material", "Rapid mobilization"] },
+      cable: { family: "Cable-Deployed Dredge Pump", art: "cable", blurb: "Lowered by crane or cable from shore, barge, or gantry. Available in electric or hydraulic drive with water-jetting rings for fast-settling material.", specs: [drive, "Optional water jetting ring", "High-solids, non-clog design"] },
+      remote: { family: "Subdredge™ Remote-Operated Dredge", art: "remote", blurb: "A crewless, self-propelled dredge driven from shore — built around the EDDY Pump non-clog design for high-solids production without divers or support boats.", specs: ["Remote operation from shore", "EDDY Pump non-clog rotor", "High-solids slurry output"] },
+      sled: { family: "Dredge Sled", art: "sled", blurb: "The EDDY Pump mounted on a skid frame, winched across the bottom from shore — steady production with a minimal equipment footprint.", specs: ["Winch-guided from shore", "Low equipment footprint", "High-solids, non-clog design"] },
+      diver: { family: "Diver-Operated Dredge", art: "diver", blurb: "A diver-guided EDDY Pump for precise removal in confined or sensitive areas where larger equipment can't work.", specs: ["Precise, diver-directed dredging", "Confined and sensitive areas", "Non-clog high-solids design"] },
+      auger: { family: "Mini Auger ModDredge", art: "auger", blurb: "A compact auger dredge for lagoons, small ponds, and tight footprints — the auger feeds settled material straight into the EDDY Pump.", specs: ["Compact footprint", "Auger-fed for settled solids", "Ideal for lagoons and small ponds"] },
+    }[deployment];
+    return fam || { family: "EDDY Dredge System", art: "dredging", blurb: "Our engineering team will match the right dredge configuration to your project.", specs: ["High-solids, non-clog design"] };
   }
 
-  if (application === "slurry") {
-    const size = production === "f_high" ? { s: '10"–12"' } : production === "f_mid" ? { s: '6"–8"' } : { s: '2"–4"' };
+  // Process pump path
+  if (production === "f_50_200" && head === "h_over") {
     return {
-      family: `EDDY Pump HD Slurry Pump — ${size.s} Class`,
+      family: "EDDY HH2000 High-Head Pump",
       art: "slurry",
-      blurb:
-        "The core EDDY Pump design: a geometrically induced eddy current instead of a close-tolerance impeller — high solids tolerance, low wear, no clogging on the material you described.",
-      specs: [`${size.s} discharge class`, power === "diesel" ? "Diesel drive package" : power === "hydraulic" ? "Hydraulic drive package" : "Electric motor drive", "Passes large solids without clogging"],
+      blurb: "Purpose-built for high-head duty — 50–200 GPM with discharge head over 120 ft is exactly what the HH2000 was designed to do, with the same non-clog EDDY rotor.",
+      specs: ["High-head design (120+ ft)", "50–200 GPM duty range", drive, "Non-clog high-solids design"],
     };
   }
-
-  // sump
-  if (deployment === "stationary") {
-    return {
-      family: "Stationary Sump Pump System",
-      art: "stationary",
-      blurb:
-        "Permanently installed EDDY Pump sized to your sump, with the same non-clog tolerance for grit, rags, and settled solids that defeats standard sump pumps.",
-      specs: ["Fixed installation", "Handles settled, compacted solids", "Low-maintenance wear profile"],
-    };
-  }
-  if (deployment === "excavator") {
-    return {
-      family: "Excavator-Mounted Pump Attachment",
-      art: "excavator",
-      blurb:
-        "Reach into pits and sumps from the excavator you already run — no confined-space entry, no vac trucks on standby.",
-      specs: ["Runs off excavator hydraulics", "No confined-space entry", "Agitates and pumps compacted material"],
-    };
-  }
+  const size = PUMP_SIZE[production] || "4-in";
+  const config = { flooded: { label: "Flooded Suction Pump", art: "flooded" }, submersible: { label: "Submersible Pump", art: "submersible" }, selfpriming: { label: "Self-Priming Pump", art: "selfpriming" } }[deployment] || { label: "Process Pump", art: "slurry" };
   return {
-    family: "Cable-Deployed Pit Cleanout Pump",
-    art: "cable",
-    blurb:
-      "Lower it into the sump, pump it down to the floor, lift it out. Electric or hydraulic drive, built for grit-heavy settled solids.",
-    specs: [power === "electric" ? "Electric submersible drive" : "Hydraulic drive w/ HPU", "Pumps down to low water level", "Non-clog high-solids design"],
+    family: `EDDY Pump ${size} ${config.label}`,
+    art: config.art,
+    blurb: "The core EDDY Pump design: a geometrically induced eddy current instead of a close-tolerance impeller — high solids tolerance, low wear, no clogging on the material you described.",
+    specs: [`${size} discharge class`, config.label + " configuration", drive, "Passes large solids without clogging"],
   };
 }
 
-/* Human-readable labels for the build sheet */
 function labelFor(qid, optId) {
   const q = QUESTIONS[qid];
   const o = q?.options.find((x) => x.id === optId);
@@ -342,6 +367,7 @@ const SHEET_ROWS = [
   { key: "application", label: "APPLICATION" },
   { key: "material", label: "MATERIAL" },
   { key: "production", label: "PRODUCTION" },
+  { key: "head", label: "HEAD" },
   { key: "power", label: "POWER" },
   { key: "deployment", label: "DEPLOYMENT" },
 ];
@@ -350,49 +376,63 @@ function EddyConfigurator() {
   const [answers, setAnswers] = useState({});
   const [stepIdx, setStepIdx] = useState(0);
   const [done, setDone] = useState(false);
+  const [showOther, setShowOther] = useState(false);
+  const [otherText, setOtherText] = useState("");
   const [lead, setLead] = useState({ name: "", email: "", company: "", phone: "" });
   const [submitted, setSubmitted] = useState(false);
 
-  const track = answers.application ? TRACKS[answers.application] : ["application"];
+  const track = buildTrack(answers);
   const currentQid = track[stepIdx];
   const question = QUESTIONS[currentQid];
   const totalSteps = answers.application ? track.length : 5;
 
   const rec = useMemo(() => (done ? recommend(answers) : null), [done, answers]);
 
-  const pick = (opt) => {
-    const q = QUESTIONS[currentQid];
-    const next = { ...answers, [q.key]: opt.id };
-    if (q.key === "application" && answers.application && answers.application !== opt.id) {
-      setAnswers({ application: opt.id });
-    } else {
-      setAnswers(next);
-    }
-    const newTrack = TRACKS[q.key === "application" ? opt.id : next.application];
+  const advance = (next) => {
+    setAnswers(next);
+    setShowOther(false);
+    setOtherText("");
+    const newTrack = buildTrack(next);
     if (stepIdx + 1 >= newTrack.length) setDone(true);
     else setStepIdx(stepIdx + 1);
   };
 
+  const pick = (opt) => {
+    const q = QUESTIONS[currentQid];
+    if (q.key === "material" && opt.id === "other") { setShowOther(true); return; }
+    let next = { ...answers, [q.key]: opt.id };
+    if (q.key === "application" && answers.application && answers.application !== opt.id) next = { application: opt.id };
+    if (q.key === "production" && opt.id !== "f_50_200") delete next.head;
+    advance(next);
+  };
+
+  const continueOther = () => {
+    if (!otherText.trim()) return;
+    advance({ ...answers, material: "other", materialOther: otherText.trim() });
+  };
+
   const back = () => {
     if (done) { setDone(false); setSubmitted(false); return; }
+    setShowOther(false);
     if (stepIdx > 0) setStepIdx(stepIdx - 1);
   };
 
-  const restart = () => { setAnswers({}); setStepIdx(0); setDone(false); setSubmitted(false); setLead({ name: "", email: "", company: "", phone: "" }); };
+  const restart = () => { setAnswers({}); setStepIdx(0); setDone(false); setSubmitted(false); setShowOther(false); setOtherText(""); setLead({ name: "", email: "", company: "", phone: "" }); };
 
   const handleSubmit = () => {
     if (!lead.name || !lead.email) return;
-    /* ============================================
-       PRODUCTION: replace with HubSpot Forms API —
+    /* PRODUCTION: replace with HubSpot Forms API —
        POST https://api.hsforms.com/submissions/v3/integration/submit/{portalId}/{formGuid}
-       Include configurator answers as custom contact properties
-       so the deal record carries the full build sheet.
-       ============================================ */
+       Include configurator answers as contact properties. */
     setSubmitted(true);
   };
 
+  const sheetValue = (key) => {
+    if (key === "material" && answers.material === "other" && answers.materialOther) return answers.materialOther;
+    const qid = { application: "application", material: "material", production: answers.application === "process" ? "flow_pump" : "production_dredge", head: "head", power: "power", deployment: answers.application === "process" ? "deployment_pump" : "deployment_dredge" }[key];
+    return labelFor(qid, answers[key]);
+  };
   const answeredRows = SHEET_ROWS.filter((r) => answers[r.key]);
-  const qidForKey = { application: "application", material: "material", production: answers.application === "slurry" ? "flow_slurry" : "production_dredge", power: "power", deployment: answers.application === "sump" ? "deployment_sump" : "deployment" };
 
   return (
     <div className="cfg">
@@ -411,7 +451,7 @@ function EddyConfigurator() {
         .restart:hover, .restart:focus-visible { border-color: var(--orange); color: var(--paper); outline:none; }
 
         .progress { display:flex; gap:6px; padding: 0 28px; margin-top:18px; }
-        .tick { height:3px; flex:1; background: var(--line); position:relative; }
+        .tick { height:3px; flex:1; background: var(--line); }
         .tick.on { background: var(--orange); }
 
         .main { display:flex; gap:0; align-items:flex-start; max-width: 1180px; margin: 0 auto; padding: 34px 28px 80px; }
@@ -430,6 +470,12 @@ function EddyConfigurator() {
         .card h3 { font-family:'Barlow Condensed'; font-size: 21px; font-weight:600; letter-spacing:0.02em; margin: 14px 16px 4px; text-transform: uppercase; }
         .card p { margin: 0 16px; font-size: 13.5px; color:#9AA7B4; line-height:1.45; }
         .photoNote { margin-top:auto; padding: 12px 16px 0; font-family:'IBM Plex Mono'; font-size: 9.5px; letter-spacing:0.14em; color:#44525F; }
+
+        .otherBox { margin-top: 20px; background: var(--panel); border: 1px solid var(--orange); padding: 18px 20px; max-width: 520px; }
+        .otherBox label { display:block; font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing:0.2em; color: var(--orange); margin-bottom: 10px; }
+        .otherRow { display:flex; gap: 10px; }
+        .otherRow input { flex:1; background:#141B23; border:1px solid var(--line); color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size: 14px; }
+        .otherRow input:focus-visible { outline:none; border-color: var(--orange); }
 
         .backbtn { margin-top: 26px; background:none; border:none; color: var(--steel); font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:0.12em; cursor:pointer; padding:6px 2px; }
         .backbtn:hover, .backbtn:focus-visible { color: var(--paper); outline:none; }
@@ -501,6 +547,17 @@ function EddyConfigurator() {
                   </button>
                 ))}
               </div>
+              {showOther && (
+                <div className="otherBox">
+                  <label>WHAT ARE YOU MOVING?</label>
+                  <div className="otherRow">
+                    <input autoFocus placeholder="e.g. drilling mud, fly ash, fish waste…" value={otherText}
+                      onChange={(e) => setOtherText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") continueOther(); }} />
+                    <button className="cta" style={{marginTop: 0}} disabled={!otherText.trim()} onClick={continueOther}>Continue</button>
+                  </div>
+                </div>
+              )}
               {stepIdx > 0 && <button className="backbtn" onClick={back}>← BACK</button>}
             </>
           )}
@@ -560,11 +617,11 @@ function EddyConfigurator() {
           {answeredRows.map((r) => (
             <div className="row" key={r.key}>
               <span className="k">{r.label}</span>
-              <span className="v">{labelFor(qidForKey[r.key], answers[r.key])}</span>
+              <span className="v">{sheetValue(r.key)}</span>
             </div>
           ))}
           {done && rec && (
-            <div className="row"><span className="k">FAMILY</span><span className="v">{rec.family.split("—")[0].trim()}</span></div>
+            <div className="row"><span className="k">FAMILY</span><span className="v">{rec.family}</span></div>
           )}
         </aside>
       </div>
@@ -573,6 +630,7 @@ function EddyConfigurator() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<EddyConfigurator />);
+
 </script>
 </body>
 </html>
