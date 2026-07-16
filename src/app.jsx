@@ -1,5 +1,5 @@
 
-const { useState, useMemo } = React;
+const { useState, useMemo, useEffect, useRef } = React;
 const API_BASE = "https://api-production-1940.up.railway.app";
 const newIdempotencyKey = () => `web:${window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 const validEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -264,7 +264,7 @@ const QUESTIONS = {
     key: "power",
     eyebrow: "STEP — POWER",
     title: "What power is available on site?",
-    sub: "Drives the drive.",
+    sub: "Choose the power source available at your site.",
     options: [
       { id: "electric", label: "Electric", desc: "Plant power or generator on site.", art: "electric" },
       { id: "hydraulic", label: "Hydraulic", desc: "Excavator or hydraulic power unit available.", art: "hydraulic" },
@@ -380,6 +380,7 @@ function EddyConfigurator() {
   const [showOther, setShowOther] = useState(false);
   const [otherText, setOtherText] = useState("");
   const [lead, setLead] = useState({ name: "", email: "", company: "", phone: "" });
+  const [touched, setTouched] = useState({ name: false, email: false });
   const [project, setProject] = useState({ discharge_distance_ft: "", elevation_gain_ft: "", water_depth_ft: "", solids_size_in: "", specific_gravity: "", percent_solids: "", excavator_model: "", pipe_diameter_in: "", notes: "" });
   const [consent, setConsent] = useState(false);
   const [website, setWebsite] = useState("");
@@ -388,6 +389,10 @@ function EddyConfigurator() {
   const [submitError, setSubmitError] = useState("");
   const [submissionId, setSubmissionId] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const stepTopRef = useRef(null);
+  const headingRef = useRef(null);
+  const quoteRef = useRef(null);
+  const lastPayloadSignatureRef = useRef(null);
 
   const track = buildTrack(answers);
   const currentQid = track[stepIdx];
@@ -395,6 +400,19 @@ function EddyConfigurator() {
   const totalSteps = answers.application ? track.length : 5;
 
   const rec = useMemo(() => (done ? recommend(answers) : null), [done, answers]);
+  const nameInvalid = touched.name && !lead.name.trim();
+  const emailInvalid = touched.email && !validEmail(lead.email);
+
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true });
+    stepTopRef.current?.scrollIntoView({ block: "start" });
+  }, [stepIdx, done]);
+
+  const goToQuote = () => {
+    if (!quoteRef.current) return;
+    quoteRef.current.scrollIntoView({ block: "start" });
+    quoteRef.current.focus({ preventScroll: true });
+  };
 
   const advance = (next) => {
     setAnswers(next);
@@ -450,12 +468,14 @@ function EddyConfigurator() {
     setShowOther(false);
     setOtherText("");
     setLead({ name: "", email: "", company: "", phone: "" });
+    setTouched({ name: false, email: false });
     setProject({ discharge_distance_ft: "", elevation_gain_ft: "", water_depth_ft: "", solids_size_in: "", specific_gravity: "", percent_solids: "", excavator_model: "", pipe_diameter_in: "", notes: "" });
     setConsent(false);
     setWebsite("");
     setSubmitError("");
     setSubmissionId("");
     setIdempotencyKey(newIdempotencyKey());
+    lastPayloadSignatureRef.current = null;
   };
 
   const numberOrNull = (value) => value === "" ? null : Number(value);
@@ -467,38 +487,46 @@ function EddyConfigurator() {
       return;
     }
 
+    const submissionData = {
+      customer: { ...lead, name: lead.name.trim(), email: lead.email.trim() },
+      answers: {
+        application: answers.application,
+        material: answers.material,
+        materialOther: answers.material === "other" ? answers.materialOther : null,
+        production: answers.production,
+        head: answers.head || null,
+        power: answers.power,
+        deployment: answers.deployment,
+      },
+      project_details: {
+        discharge_distance_ft: numberOrNull(project.discharge_distance_ft),
+        elevation_gain_ft: numberOrNull(project.elevation_gain_ft),
+        water_depth_ft: numberOrNull(project.water_depth_ft),
+        solids_size_in: numberOrNull(project.solids_size_in),
+        specific_gravity: numberOrNull(project.specific_gravity),
+        percent_solids: numberOrNull(project.percent_solids),
+        excavator_model: project.excavator_model || null,
+        pipe_diameter_in: numberOrNull(project.pipe_diameter_in),
+        notes: project.notes || null,
+      },
+      consent: true,
+      website,
+    };
+    const payloadSignature = JSON.stringify(submissionData);
+    let requestKey = idempotencyKey;
+    if (lastPayloadSignatureRef.current && lastPayloadSignatureRef.current !== payloadSignature) {
+      requestKey = newIdempotencyKey();
+      setIdempotencyKey(requestKey);
+    }
+    lastPayloadSignatureRef.current = payloadSignature;
+
     setSubmitting(true);
     setSubmitError("");
     try {
       const response = await fetch(`${API_BASE}/v1/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idempotency_key: idempotencyKey,
-          customer: { ...lead, name: lead.name.trim(), email: lead.email.trim() },
-          answers: {
-            application: answers.application,
-            material: answers.material,
-            materialOther: answers.material === "other" ? answers.materialOther : null,
-            production: answers.production,
-            head: answers.head || null,
-            power: answers.power,
-            deployment: answers.deployment,
-          },
-          project_details: {
-            discharge_distance_ft: numberOrNull(project.discharge_distance_ft),
-            elevation_gain_ft: numberOrNull(project.elevation_gain_ft),
-            water_depth_ft: numberOrNull(project.water_depth_ft),
-            solids_size_in: numberOrNull(project.solids_size_in),
-            specific_gravity: numberOrNull(project.specific_gravity),
-            percent_solids: numberOrNull(project.percent_solids),
-            excavator_model: project.excavator_model || null,
-            pipe_diameter_in: numberOrNull(project.pipe_diameter_in),
-            notes: project.notes || null,
-          },
-          consent: true,
-          website,
-        }),
+        body: JSON.stringify({ idempotency_key: requestKey, ...submissionData }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(apiErrorMessage(result.detail));
@@ -522,7 +550,7 @@ function EddyConfigurator() {
     <div className="cfg">
       <style>{`
         .cfg { min-height: 100vh; background: #ffffff; color: #1C2B3A; font-family: 'Barlow', sans-serif;
-               --blue: #244A9E; --orange: #F26A21; --steel: #6B7A8D; --panel: #F5F7FA; --line: #DCE3EC; --paper: #1C2B3A; }
+               --blue: #244A9E; --orange: #B94708; --steel: #6B7A8D; --panel: #F5F7FA; --line: #DCE3EC; --paper: #1C2B3A; }
         .cfg * { box-sizing: border-box; }
 
         .topbar { display:flex; align-items:center; justify-content:space-between; gap:24px; padding: 12px 28px; border-bottom: 3px solid var(--blue); background: #ffffff; }
@@ -530,8 +558,8 @@ function EddyConfigurator() {
         .logoImg { width: 260px; max-width:42vw; height:auto; display:block; }
         .brandDivider { width:1px; height:36px; background:var(--line); }
         .productName { font-family:'IBM Plex Mono'; font-size:10px; letter-spacing:0.18em; line-height:1.55; color:var(--steel); text-transform:uppercase; }
-        .restart { background:none; border:1px solid var(--line); color:var(--steel); font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:0.12em; padding:8px 14px; cursor:pointer; transition: border-color .2s, color .2s; }
-        .restart:hover, .restart:focus-visible { border-color: var(--orange); color: var(--paper); outline:none; }
+        .restart { background:none; border:1px solid var(--line); color:var(--blue); font-family:'IBM Plex Mono'; font-size:13px; letter-spacing:0.08em; min-height:44px; padding:10px 16px; cursor:pointer; transition: border-color .2s, color .2s; }
+        .restart:hover, .restart:focus-visible { border-color: var(--orange); color: var(--paper); outline:3px solid rgba(242,106,33,.20); outline-offset:2px; }
 
         .progress { display:flex; gap:6px; padding: 0 28px; margin-top:18px; }
         .tick { height:3px; flex:1; background: var(--line); }
@@ -540,11 +568,15 @@ function EddyConfigurator() {
         .main { display:flex; gap:0; align-items:flex-start; max-width: 1180px; margin: 0 auto; padding: 34px 28px 80px; }
         .stage { flex: 1 1 auto; min-width: 0; }
 
-        .eyebrow { font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:0.3em; color: var(--orange); margin-bottom: 10px; }
-        h1.q { color: var(--blue); font-family:'Barlow Condensed'; font-weight:600; font-size: clamp(30px, 4.5vw, 46px); line-height:1.05; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.015em; }
-        .sub { color: #5A6B7E; font-size: 15px; margin: 0 0 30px; max-width: 52ch; }
+        .stepTop { scroll-margin-top:18px; }
+        .stepNav { min-height:48px; display:flex; align-items:center; margin:0 0 16px; }
+        .eyebrow { font-family:'IBM Plex Mono'; font-size:13px; letter-spacing:0.2em; color: var(--orange); margin-bottom: 10px; }
+        h1.q { color: var(--blue); font-family:'Barlow Condensed'; font-weight:600; font-size: clamp(34px, 4.5vw, 48px); line-height:1.08; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.015em; }
+        h1.q:focus, h2.fam:focus { outline:none; }
+        .sub { color: #445468; font-size: 18px; line-height:1.5; margin: 0 0 22px; max-width: 58ch; }
+        .selectionHelp { color:var(--paper); font-size:16px; font-weight:600; margin:0 0 14px; }
 
-        .trustLine { display:flex; flex-wrap:wrap; gap:8px 18px; margin:-12px 0 28px; color:#6B7A8D; font-family:'IBM Plex Mono'; font-size:10px; letter-spacing:.08em; }
+        .trustLine { display:flex; flex-wrap:wrap; gap:10px 20px; margin:-6px 0 24px; color:#526477; font-family:'IBM Plex Mono'; font-size:13px; letter-spacing:.04em; }
         .trustLine span::before { content:'✓'; color:var(--orange); margin-right:7px; font-weight:700; }
         .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; }
         .card { text-align:left; background: var(--panel); border: 1px solid var(--line); padding: 0 0 18px; cursor:pointer; color: inherit; font-family:inherit;
@@ -553,68 +585,78 @@ function EddyConfigurator() {
         .card:focus-visible { border-color: var(--orange); outline:3px solid rgba(242,106,33,.28); outline-offset:2px; }
         .cardArt { width:100%; height:auto; display:block; background: #EEF2F7; border-bottom:1px solid var(--line); }
         .cardPhoto { aspect-ratio: 160/115; object-fit: cover; }
-        .card h3 { font-family:'Barlow Condensed'; font-size: 21px; font-weight:600; letter-spacing:0.02em; margin: 14px 16px 4px; text-transform: uppercase; }
-        .card p { margin: 0 16px; font-size: 13.5px; color:#5A6B7E; line-height:1.45; }
-        .cardCue { margin-top:auto; padding:14px 16px 0; font-family:'IBM Plex Mono'; font-size:10px; letter-spacing:.1em; color:var(--blue); }
+        .card h3 { font-family:'Barlow Condensed'; font-size: 24px; font-weight:600; letter-spacing:0.02em; margin: 14px 16px 4px; text-transform: uppercase; }
+        .card p { margin: 0 16px; font-size: 16px; color:#445468; line-height:1.5; }
+        .cardCue { margin-top:auto; padding:14px 16px 0; font-family:'IBM Plex Mono'; font-size:13px; letter-spacing:.06em; color:var(--blue); }
         .cardCue::after { content:'  →'; color:var(--orange); }
 
         .flowSelect { max-width:620px; padding:22px; background:var(--panel); border:1px solid var(--line); }
-        .flowSelect label { display:block; margin-bottom:10px; color:var(--blue); font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:.13em; }
-        .flowSelect select { width:100%; min-height:52px; padding:12px 44px 12px 14px; border:1px solid var(--line); border-radius:0; background:#FFFFFF; color:var(--paper); font-family:'Barlow'; font-size:16px; cursor:pointer; }
+        .flowSelect label { display:block; margin-bottom:10px; color:var(--blue); font-family:'IBM Plex Mono'; font-size:14px; letter-spacing:.08em; }
+        .flowSelect select { width:100%; min-height:52px; padding:12px 44px 12px 14px; border:1px solid var(--line); border-radius:0; background:#FFFFFF; color:var(--paper); font-family:'Barlow'; font-size:18px; cursor:pointer; }
         .flowSelect select:focus-visible { outline:3px solid rgba(242,106,33,.28); outline-offset:2px; border-color:var(--orange); }
-        .flowHint { margin:10px 0 0; color:var(--steel); font-size:13px; line-height:1.45; }
+        .flowHint { margin:12px 0 0; color:#526477; font-size:16px; line-height:1.5; }
 
         .otherBox { margin-top: 20px; background: var(--panel); border: 1px solid var(--orange); padding: 18px 20px; max-width: 520px; }
-        .otherBox label { display:block; font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing:0.2em; color: var(--orange); margin-bottom: 10px; }
+        .otherBox label { display:block; font-family:'IBM Plex Mono'; font-size: 14px; letter-spacing:0.08em; color: var(--orange); margin-bottom: 10px; }
         .otherRow { display:flex; gap: 10px; }
-        .otherRow input { flex:1; background:#FFFFFF; border:1px solid var(--line); color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size: 14px; }
+        .otherRow input { flex:1; background:#FFFFFF; border:1px solid var(--line); color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size: 16px; min-height:48px; }
         .otherRow input:focus-visible { outline:none; border-color: var(--orange); }
 
-        .backbtn { margin-top: 26px; background:none; border:none; color: var(--steel); font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:0.12em; cursor:pointer; padding:6px 2px; }
-        .backbtn:hover, .backbtn:focus-visible { color: var(--paper); outline:none; }
+        .backbtn { background:#FFFFFF; border:1px solid var(--line); color:var(--blue); font-family:'IBM Plex Mono'; font-size:14px; font-weight:600; letter-spacing:0.04em; cursor:pointer; min-height:48px; padding:11px 15px; }
+        .backbtn:hover, .backbtn:focus-visible { border-color:var(--orange); color:var(--paper); outline:3px solid rgba(242,106,33,.20); outline-offset:2px; }
 
         .sheet { width: 270px; flex: 0 0 270px; margin-left: 36px; background: var(--panel); border:1px solid var(--line); position: sticky; top: 24px; }
-        .sheet .head { padding: 14px 18px; border-bottom: 1px dashed var(--line); font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing: 0.26em; color: var(--orange); }
-        .sheet .row { display:flex; justify-content:space-between; gap:10px; padding: 11px 18px; border-bottom: 1px solid var(--line); font-family:'IBM Plex Mono'; font-size: 11.5px; }
-        .sheet .row .k { color: var(--steel); letter-spacing:0.08em; }
+        .sheet .head { padding: 14px 18px; border-bottom: 1px dashed var(--line); font-family:'IBM Plex Mono'; font-size: 13px; letter-spacing: 0.12em; color: var(--orange); }
+        .sheet .row { display:flex; justify-content:space-between; gap:10px; padding: 13px 18px; border-bottom: 1px solid var(--line); font-family:'IBM Plex Mono'; font-size: 13px; line-height:1.45; }
+        .sheet .row .k { color: #526477; letter-spacing:0.04em; }
         .sheet .row .v { color: var(--paper); text-align:right; }
-        .sheet .empty { padding: 16px 18px; color: #9AA9BC; font-family:'IBM Plex Mono'; font-size: 11px; line-height: 1.7; }
+        .sheet .empty { padding: 16px 18px; color: #526477; font-family:'IBM Plex Mono'; font-size: 13px; line-height: 1.6; }
 
         .result { max-width: 760px; }
+        .resultActions { margin:0 0 16px; }
+        .quoteJump { background:var(--orange); border:none; color:#FFFFFF; font-family:'Barlow Condensed'; font-size:18px; font-weight:700; letter-spacing:.04em; min-height:52px; padding:13px 20px; text-transform:uppercase; cursor:pointer; }
+        .quoteJump:hover, .quoteJump:focus-visible { filter:brightness(.95); outline:3px solid rgba(201,79,10,.24); outline-offset:2px; }
         .resultCard { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--orange); padding: 0; }
-        .resultCard .cardArt { border-bottom: 1px solid var(--line); height:320px; object-fit:cover; }
+        .resultCard .cardArt { border-bottom: 1px solid var(--line); height:220px; object-fit:cover; }
         .resultBody { padding: 22px 26px 26px; }
-        h2.fam { color: var(--blue); font-family:'Barlow Condensed'; font-weight:700; font-size: 32px; margin: 0 0 4px; text-transform:uppercase; letter-spacing:0.02em; }
-        .blurb { color:#445468; line-height: 1.55; margin: 0 0 16px; font-size: 15px; }
+        h2.fam { color: var(--blue); font-family:'Barlow Condensed'; font-weight:700; font-size: 36px; line-height:1.1; margin: 0 0 8px; text-transform:uppercase; letter-spacing:0.02em; }
+        .blurb { color:#3E4F63; line-height: 1.55; margin: 0 0 16px; font-size: 17px; }
         .speclist { display:flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
-        .chip { font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing:0.06em; border: 1px solid var(--line); color:#5A6B7E; padding: 6px 10px; }
-        .disclaimer { font-size: 12.5px; color: #7A8AA0; line-height:1.6; margin-top: 18px; border-left: 2px solid var(--line); padding-left: 12px; }
+        .chip { font-family:'IBM Plex Mono'; font-size: 13px; letter-spacing:0.03em; border: 1px solid var(--line); color:#445468; padding: 8px 11px; }
+        .disclaimer { font-size: 14px; color: #5F7084; line-height:1.6; margin-top: 18px; border-left: 3px solid var(--line); padding-left: 12px; }
 
-        .leadbox { margin-top: 26px; background: var(--panel); border: 1px solid var(--line); padding: 22px 26px; }
-        .leadbox h3 { color: var(--blue); font-family:'Barlow Condensed'; text-transform:uppercase; font-size: 20px; margin: 0 0 6px; letter-spacing:0.03em; }
-        .leadbox p { color:#5A6B7E; font-size: 13.5px; margin: 0 0 16px; }
-        .sectionLabel { grid-column: 1 / -1; font-family:'IBM Plex Mono'; font-size:10px; letter-spacing:.18em; color:var(--orange); margin-top:6px; }
-        .fields { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .fields input, .fields textarea { background:#FFFFFF; border:1px solid var(--line); color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size: 14px; width:100%; }
-        .fields textarea { grid-column: 1 / -1; min-height:82px; resize:vertical; }
-        .fields input:focus-visible, .fields textarea:focus-visible { outline:none; border-color: var(--orange); }
-        .consentRow { display:flex; align-items:flex-start; gap:9px; margin-top:14px; color:#445468; font-size:13px; line-height:1.45; }
-        .consentRow input { margin-top:3px; accent-color:var(--orange); }
-        .secureNote { margin-top:10px; font-family:'IBM Plex Mono'; font-size:10px; color:#6B7A8D; line-height:1.5; }
-        .submitError { margin-top:12px; padding:10px 12px; border-left:3px solid #B42318; background:#FFF1F0; color:#8A1C13; font-size:13px; line-height:1.45; }
+        .leadbox { margin-top: 22px; background: var(--panel); border: 1px solid var(--line); border-top:3px solid var(--blue); padding: 24px 26px; scroll-margin-top:16px; }
+        .leadbox:focus { outline:3px solid rgba(36,74,158,.24); outline-offset:3px; }
+        .leadbox h3 { color: var(--blue); font-family:'Barlow Condensed'; text-transform:uppercase; font-size: 28px; line-height:1.12; margin: 0 0 8px; letter-spacing:0.02em; }
+        .leadbox p { color:#445468; font-size: 16px; line-height:1.5; margin: 0 0 18px; }
+        .sectionLabel { grid-column: 1 / -1; font-family:'IBM Plex Mono'; font-size:13px; letter-spacing:.1em; color:var(--orange); margin-top:4px; }
+        .fields { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .fieldGroup { display:flex; flex-direction:column; gap:7px; }
+        .fieldGroup label { color:var(--paper); font-size:15px; font-weight:600; }
+        .fieldGroup label span { color:#526477; font-weight:400; margin-left:4px; }
+        .fieldError { color:#9B1C13; font-size:14px; font-weight:600; line-height:1.35; }
+        .fields input, .fields textarea { background:#FFFFFF; border:1px solid #7A8AA0; color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size:16px; min-height:48px; width:100%; }
+        .fields textarea { grid-column: 1 / -1; min-height:96px; resize:vertical; }
+        .fields input:focus-visible, .fields textarea:focus-visible { outline:3px solid rgba(242,106,33,.22); outline-offset:1px; border-color: var(--orange); }
+        .consentRow { display:flex; align-items:flex-start; gap:12px; margin-top:16px; color:#33465A; font-size:15px; line-height:1.5; cursor:pointer; }
+        .consentRow input { margin-top:2px; accent-color:var(--orange); min-width:20px; min-height:20px; }
+        .formHelp { margin:14px 0 0 !important; color:#526477 !important; font-size:14px !important; }
+        .formReassurance { margin-top:12px; color:var(--blue); font-size:14px; font-weight:600; line-height:1.5; }
+        .secureNote { margin-top:10px; font-family:'IBM Plex Mono'; font-size:12px; color:#5F7084; line-height:1.5; }
+        .submitError { margin-top:12px; padding:12px 14px; border-left:3px solid #B42318; background:#FFF1F0; color:#8A1C13; font-size:15px; line-height:1.45; }
         .honeypot { position:absolute !important; left:-10000px !important; width:1px !important; height:1px !important; overflow:hidden !important; }
-        .cta { margin-top: 14px; background: var(--orange); border:none; color:#FFFFFF; font-family:'Barlow Condensed'; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; font-size: 16px; padding: 13px 26px; cursor:pointer; }
-        .cta:disabled { opacity: 0.4; cursor: default; }
-        .cta:not(:disabled):hover { filter: brightness(1.08); }
-        .thanks { font-family:'IBM Plex Mono'; color: var(--orange); font-size: 13px; letter-spacing:0.06em; line-height:1.7; }
-        .reference { color:#6B7A8D; font-size:10px; }
+        .cta { margin-top: 16px; background: var(--orange); border:none; color:#FFFFFF; font-family:'Barlow Condensed'; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; font-size:18px; min-height:52px; padding:14px 28px; cursor:pointer; }
+        .cta:disabled { opacity: 0.45; cursor: default; }
+        .cta:not(:disabled):hover, .cta:not(:disabled):focus-visible { filter: brightness(1.05); outline:3px solid rgba(242,106,33,.24); outline-offset:2px; }
+        .thanks { font-family:'IBM Plex Mono'; color: var(--orange); font-size: 16px; letter-spacing:0.03em; line-height:1.7; }
+        .reference { color:#526477; font-size:13px; }
         .projectDetails { grid-column:1 / -1; margin-top:6px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
-        .projectDetails summary { cursor:pointer; padding:14px 2px; color:var(--blue); font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:.08em; list-style:none; }
+        .projectDetails summary { cursor:pointer; padding:16px 2px; color:var(--blue); font-family:'Barlow'; font-weight:600; font-size:15px; line-height:1.4; list-style:none; }
         .projectDetails summary::-webkit-details-marker { display:none; }
         .projectDetails summary::before { content:'+'; color:var(--orange); display:inline-block; width:20px; font-weight:700; }
         .projectDetails[open] summary::before { content:'−'; }
-        .projectGrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:0 0 16px; }
-        .projectGrid textarea { grid-column:1 / -1; }
+        .projectGrid { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:0 0 16px; }
+        .projectGrid .notes { grid-column:1 / -1; }
 
         @media (max-width: 860px) {
           .main { flex-direction: column; }
@@ -626,13 +668,26 @@ function EddyConfigurator() {
           .topbar { padding:10px 16px; gap:12px; }
           .logoImg { width:200px; max-width:58vw; }
           .brandDivider, .productName { display:none; }
-          .restart { padding:10px; font-size:9px; }
+          .restart { padding:10px 12px; font-size:12px; }
           .progress { padding:0 16px; }
-          .main { padding:28px 16px 56px; }
-          .resultCard .cardArt { height:210px; }
+          .main { padding:20px 16px 56px; }
+          .stepNav { margin-bottom:12px; }
+          .backbtn { width:100%; text-align:left; }
+          .sub { font-size:17px; }
+          .grid { gap:12px; }
+          .card { display:grid; grid-template-columns:112px minmax(0,1fr); grid-template-rows:auto auto 1fr; min-height:138px; padding:0; }
+          .card .cardArt { grid-column:1; grid-row:1 / 4; width:112px; height:100%; min-height:138px; object-fit:cover; border-right:1px solid var(--line); border-bottom:none; }
+          .card h3 { grid-column:2; grid-row:1; margin:14px 14px 3px; font-size:21px; }
+          .card p { grid-column:2; grid-row:2; margin:0 14px; font-size:15px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+          .cardCue { grid-column:2; grid-row:3; align-self:end; padding:10px 14px 13px; font-size:12px; }
+          .otherRow { flex-direction:column; }
+          .otherRow input { min-width:0; width:100%; }
+          .resultCard .cardArt { height:150px; }
           .resultBody, .leadbox { padding:20px 18px; }
+          h2.fam { font-size:32px; }
+          .cta, .quoteJump { width:100%; }
           .projectGrid { grid-template-columns:1fr; }
-          .projectGrid textarea { grid-column:auto; }
+          .projectGrid .notes { grid-column:auto; }
         }
         @media (prefers-reduced-motion: reduce) { .card, .card:hover { transition:none; transform:none; } }
       `}</style>
@@ -656,10 +711,18 @@ function EddyConfigurator() {
         <div className="stage">
           {!done && question && (
             <>
-              <div className="eyebrow">{question.eyebrow} · {stepIdx + 1} / {totalSteps}</div>
-              <h1 className="q">{question.title}</h1>
-              {question.sub && <p className="sub">{question.sub}</p>}
-              {stepIdx === 0 && <div className="trustLine" aria-label="Configurator benefits"><span>About 2 minutes</span><span>No account required</span><span>Engineering-reviewed</span></div>}
+              <div className="stepTop" ref={stepTopRef}>
+                {stepIdx > 0 && (
+                  <div className="stepNav">
+                    <button className="backbtn" onClick={back}>← Back to previous question</button>
+                  </div>
+                )}
+                <div className="eyebrow">Step {stepIdx + 1} of {totalSteps}: {question.eyebrow.replace("STEP — ", "")}</div>
+                <h1 className="q" ref={headingRef} tabIndex="-1">{question.title}</h1>
+                {question.sub && <p className="sub">{question.sub}</p>}
+                {stepIdx === 0 && <div className="trustLine" aria-label="Configurator benefits"><span>About 2 minutes</span><span>No account required</span><span>Engineering-reviewed</span></div>}
+                <p className="selectionHelp">{SELECT_QUESTION_IDS.has(currentQid) ? "Choose the closest range to continue." : "Choose one option to continue."}</p>
+              </div>
               {SELECT_QUESTION_IDS.has(currentQid) ? (
                 <div className="flowSelect">
                   <label htmlFor="flow-rate-selection">
@@ -703,17 +766,22 @@ function EddyConfigurator() {
                   </div>
                 </div>
               )}
-              {stepIdx > 0 && <button className="backbtn" onClick={back}>← BACK</button>}
             </>
           )}
 
           {done && rec && (
-            <div className="result">
-              <div className="eyebrow">RECOMMENDED CONFIGURATION</div>
+            <div className="result" ref={stepTopRef}>
+              <div className="stepNav">
+                <button className="backbtn" onClick={back}>← Change my answers</button>
+              </div>
+              <div className="eyebrow">PRELIMINARY RECOMMENDATION</div>
+              <div className="resultActions">
+                <button className="quoteJump" onClick={goToQuote}>Request fast project pricing ↓</button>
+              </div>
               <div className="resultCard">
                 <CardImage kind={rec.art} />
                 <div className="resultBody">
-                  <h2 className="fam">{rec.family}</h2>
+                  <h2 className="fam" ref={headingRef} tabIndex="-1">{rec.family}</h2>
                   <p className="blurb">{rec.blurb}</p>
                   <div className="speclist">
                     {rec.specs.map((s) => <span key={s} className="chip">{s}</span>)}
@@ -726,30 +794,44 @@ function EddyConfigurator() {
                 </div>
               </div>
 
-              <div className="leadbox">
+              <div className="leadbox" ref={quoteRef} tabIndex="-1" aria-label="Project pricing request">
                 {!submitted ? (
-                  <form onSubmit={(event) => { event.preventDefault(); handleSubmit(); }} noValidate>
-                    <h3>Get detailed pricing &amp; a spec sheet</h3>
-                    <p>An EDDY Pump sales engineer will review the preliminary configuration, confirm engineering details, and prepare firm numbers.</p>
+                  <form onSubmit={(event) => { event.preventDefault(); if (event.currentTarget.reportValidity()) handleSubmit(); }}>
+                    <h3>Get fast project pricing &amp; a spec sheet</h3>
+                    <p>Send this preliminary configuration to request fast, engineering-reviewed project pricing and a matching spec sheet.</p>
                     <div className="fields">
-                      <div className="sectionLabel">CONTACT</div>
-                      <input aria-label="Name" autoComplete="name" maxLength="120" placeholder="Name *" required value={lead.name} onChange={(e) => setLead({ ...lead, name: e.target.value })} />
-                      <input aria-label="Work email" autoComplete="email" maxLength="254" placeholder="Work email *" required type="email" value={lead.email} onChange={(e) => setLead({ ...lead, email: e.target.value })} />
-                      <input aria-label="Company" autoComplete="organization" maxLength="160" placeholder="Company" value={lead.company} onChange={(e) => setLead({ ...lead, company: e.target.value })} />
-                      <input aria-label="Phone" autoComplete="tel" maxLength="40" placeholder="Phone" type="tel" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} />
+                      <div className="sectionLabel">YOUR CONTACT INFORMATION</div>
+                      <div className="fieldGroup">
+                        <label htmlFor="contact-name">Full name <span>(required)</span></label>
+                        <input id="contact-name" autoComplete="name" maxLength="120" required aria-invalid={nameInvalid} aria-describedby={nameInvalid ? "contact-name-error" : undefined} value={lead.name} onBlur={() => setTouched({ ...touched, name: true })} onChange={(e) => setLead({ ...lead, name: e.target.value })} />
+                        {nameInvalid && <span className="fieldError" id="contact-name-error" role="alert">Enter your name.</span>}
+                      </div>
+                      <div className="fieldGroup">
+                        <label htmlFor="contact-email">Work email <span>(required)</span></label>
+                        <input id="contact-email" autoComplete="email" maxLength="254" required type="email" aria-invalid={emailInvalid} aria-describedby={emailInvalid ? "contact-email-error" : undefined} value={lead.email} onBlur={() => setTouched({ ...touched, email: true })} onChange={(e) => setLead({ ...lead, email: e.target.value })} />
+                        {emailInvalid && <span className="fieldError" id="contact-email-error" role="alert">Enter a valid email address.</span>}
+                      </div>
+                      <div className="fieldGroup">
+                        <label htmlFor="contact-company">Company <span>(optional)</span></label>
+                        <input id="contact-company" autoComplete="organization" maxLength="160" value={lead.company} onChange={(e) => setLead({ ...lead, company: e.target.value })} />
+                      </div>
+                      <div className="fieldGroup">
+                        <label htmlFor="contact-phone">Phone <span>(optional)</span></label>
+                        <input id="contact-phone" autoComplete="tel" maxLength="40" type="tel" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} />
+                      </div>
 
                       <details className="projectDetails">
-                        <summary>Add optional engineering details for a faster, more accurate review</summary>
+                        <summary>Add optional project details for a faster, more accurate review</summary>
                         <div className="projectGrid">
-                          <input aria-label="Discharge distance in feet" inputMode="decimal" type="number" min="0" max="100000" placeholder="Discharge distance (ft)" value={project.discharge_distance_ft} onChange={(e) => setProject({ ...project, discharge_distance_ft: e.target.value })} />
-                          <input aria-label="Elevation gain in feet" inputMode="decimal" type="number" min="-10000" max="10000" placeholder="Elevation gain (ft)" value={project.elevation_gain_ft} onChange={(e) => setProject({ ...project, elevation_gain_ft: e.target.value })} />
-                          <input aria-label="Water depth in feet" inputMode="decimal" type="number" min="0" max="10000" placeholder="Water depth (ft)" value={project.water_depth_ft} onChange={(e) => setProject({ ...project, water_depth_ft: e.target.value })} />
-                          <input aria-label="Maximum solids size in inches" inputMode="decimal" type="number" min="0" max="100" placeholder="Maximum solids size (in)" value={project.solids_size_in} onChange={(e) => setProject({ ...project, solids_size_in: e.target.value })} />
-                          <input aria-label="Specific gravity" inputMode="decimal" type="number" min="0.1" max="10" step="0.01" placeholder="Specific gravity" value={project.specific_gravity} onChange={(e) => setProject({ ...project, specific_gravity: e.target.value })} />
-                          <input aria-label="Percent solids" inputMode="decimal" type="number" min="0" max="100" step="0.1" placeholder="Percent solids" value={project.percent_solids} onChange={(e) => setProject({ ...project, percent_solids: e.target.value })} />
-                          <input aria-label="Pipe diameter in inches" inputMode="decimal" type="number" min="0.25" max="100" placeholder="Pipe diameter (in)" value={project.pipe_diameter_in} onChange={(e) => setProject({ ...project, pipe_diameter_in: e.target.value })} />
-                          {answers.deployment === "excavator" && <input aria-label="Excavator model" maxLength="120" placeholder="Excavator model" value={project.excavator_model} onChange={(e) => setProject({ ...project, excavator_model: e.target.value })} />}
-                          <textarea aria-label="Project notes" maxLength="2000" placeholder="Material, site conditions, schedule, voltage, viscosity, abrasiveness, or other project notes" value={project.notes} onChange={(e) => setProject({ ...project, notes: e.target.value })} />
+                          <div className="fieldGroup"><label htmlFor="project-distance">Discharge distance (ft)</label><input id="project-distance" inputMode="decimal" type="number" min="0" max="100000" value={project.discharge_distance_ft} onChange={(e) => setProject({ ...project, discharge_distance_ft: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-elevation">Elevation gain (ft)</label><input id="project-elevation" inputMode="decimal" type="number" min="-10000" max="10000" value={project.elevation_gain_ft} onChange={(e) => setProject({ ...project, elevation_gain_ft: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-depth">Water depth (ft)</label><input id="project-depth" inputMode="decimal" type="number" min="0" max="10000" value={project.water_depth_ft} onChange={(e) => setProject({ ...project, water_depth_ft: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-solids">Maximum solids size (in)</label><input id="project-solids" inputMode="decimal" type="number" min="0" max="100" value={project.solids_size_in} onChange={(e) => setProject({ ...project, solids_size_in: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-gravity">Specific gravity</label><input id="project-gravity" inputMode="decimal" type="number" min="0.1" max="10" step="0.01" value={project.specific_gravity} onChange={(e) => setProject({ ...project, specific_gravity: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-percent">Percent solids</label><input id="project-percent" inputMode="decimal" type="number" min="0" max="100" step="0.1" value={project.percent_solids} onChange={(e) => setProject({ ...project, percent_solids: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-pipe">Pipe diameter (in)</label><input id="project-pipe" inputMode="decimal" type="number" min="0.25" max="100" value={project.pipe_diameter_in} onChange={(e) => setProject({ ...project, pipe_diameter_in: e.target.value })} /></div>
+                          {answers.deployment === "excavator" && <div className="fieldGroup"><label htmlFor="project-excavator">Excavator model</label><input id="project-excavator" maxLength="120" value={project.excavator_model} onChange={(e) => setProject({ ...project, excavator_model: e.target.value })} /></div>}
+                          <div className="fieldGroup notes"><label htmlFor="project-notes">Project notes</label><textarea id="project-notes" maxLength="2000" placeholder="Material, site conditions, schedule, voltage, viscosity, abrasiveness, or anything else we should know" value={project.notes} onChange={(e) => setProject({ ...project, notes: e.target.value })} /></div>
                         </div>
                       </details>
                       <label className="honeypot" aria-hidden="true">Website<input tabIndex="-1" autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
@@ -758,10 +840,12 @@ function EddyConfigurator() {
                       <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                       <span>I agree that EDDY Pump may use this information to evaluate my application and contact me about this project.</span>
                     </label>
-                    <div className="secureNote">SECURE INTAKE · SERVER-VALIDATED · ENGINEERING REVIEW REQUIRED BEFORE FIRM SELECTION OR PRICING</div>
+                    <p className="formHelp">Name, work email, and consent are required to request your quote.</p>
+                    <div className="formReassurance">No payment required · No account needed · Secure submission</div>
+                    <div className="secureNote">ENGINEERING REVIEW REQUIRED BEFORE FIRM EQUIPMENT SELECTION OR PRICING</div>
                     {submitError && <div className="submitError" role="alert">{submitError}</div>}
                     <button className="cta" type="submit" disabled={!lead.name.trim() || !validEmail(lead.email) || !consent || submitting}>
-                      {submitting ? "Sending securely…" : "Send my configuration"}
+                      {submitting ? "Sending securely…" : "Submit my pricing request"}
                     </button>
                   </form>
                 ) : (
@@ -772,8 +856,6 @@ function EddyConfigurator() {
                   </div>
                 )}
               </div>
-
-              <button className="backbtn" onClick={back}>← CHANGE MY ANSWERS</button>
             </div>
           )}
         </div>
@@ -785,7 +867,7 @@ function EddyConfigurator() {
           )}
           {answeredRows.map((r) => (
             <div className="row" key={r.key}>
-              <span className="k">{r.label}</span>
+              <span className="k">{r.key === "production" && answers.application === "process" ? "FLOW TARGET" : r.label}</span>
               <span className="v">{sheetValue(r.key)}</span>
             </div>
           ))}
