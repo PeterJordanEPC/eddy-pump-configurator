@@ -43,7 +43,7 @@ Do not edit `app.js` directly. Run `npm run build` after changing `src/app.jsx`.
 - Dredging: material → cubic yards/hour → power → deployment
 - Process pump: material → GPM range → discharge head when applicable → power → configuration
 - GPM ranges map to 1, 2, 3, 4, 6, 8, 10, 12, or 16-inch pump classes; the tool never recommends a 5-inch class
-- 50–200 GPM at more than 120 feet of head maps to the HH2000 family
+- Head is captured for engineering review and never overrides the flow-sized pump, selected configuration, or power
 - Optional engineering details use progressive disclosure to keep the initial contact form short
 
 ## Product photography
@@ -53,7 +53,7 @@ Cards use a local image when a corresponding file is available and otherwise fal
 | Filename | Use |
 |---|---|
 | `dredging.jpg` | Dredging application |
-| `slurry.jpg` | Process pump / HH2000 |
+| `slurry.jpg` | Process pump application |
 | `sand.jpg`, `sludge.jpg`, `tailings.jpg`, `debris.jpg`, `other.jpg` | Materials |
 | `flow.jpg` | Flow, production, and head ranges |
 | `electric.jpg`, `hydraulic.jpg`, `diesel.jpg` | Power |
