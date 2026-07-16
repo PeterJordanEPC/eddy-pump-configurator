@@ -7,7 +7,7 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
-<style>html,body{margin:0;padding:0;background:#141B23;}</style>
+<style>html,body{margin:0;padding:0;background:#ffffff;}</style>
 </head>
 <body>
 <div id="root"></div>
@@ -26,7 +26,7 @@ const { useState, useMemo } = React;
 /* ---------- Blueprint placeholder art ---------- */
 const Art = ({ kind }) => {
   const s = { stroke: "#F26A21", strokeWidth: 2.5, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" };
-  const d = { stroke: "#5B6B7C", strokeWidth: 1.5, fill: "none", strokeDasharray: "4 4" };
+  const d = { stroke: "#8FA3B8", strokeWidth: 1.5, fill: "none", strokeDasharray: "4 4" };
   const art = {
     dredging: (
       <g>
@@ -450,12 +450,13 @@ function EddyConfigurator() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-        .cfg { min-height: 100vh; background: #141B23; color: #E8EBEE; font-family: 'Barlow', sans-serif;
-               --orange: #F26A21; --steel: #5B6B7C; --panel: #1C2530; --line: #2A3644; --paper: #E8EBEE; }
+        .cfg { min-height: 100vh; background: #ffffff; color: #1C2B3A; font-family: 'Barlow', sans-serif;
+               --blue: #244A9E; --orange: #F26A21; --steel: #6B7A8D; --panel: #F5F7FA; --line: #DCE3EC; --paper: #1C2B3A; }
         .cfg * { box-sizing: border-box; }
 
-        .topbar { display:flex; align-items:center; justify-content:space-between; padding: 18px 28px; border-bottom: 1px solid var(--line); }
+        .topbar { display:flex; align-items:center; justify-content:space-between; padding: 14px 28px; border-bottom: 3px solid var(--blue); background: #ffffff; }
         .logo { font-family:'Barlow Condensed'; font-weight:700; font-size:26px; letter-spacing:0.06em; }
+        .logoImg { height: 44px; display: block; }
         .logo span { color: var(--orange); }
         .logo small { display:block; font-family:'IBM Plex Mono'; font-size:10px; letter-spacing:0.28em; color: var(--steel); font-weight:400; margin-top:2px; }
         .restart { background:none; border:1px solid var(--line); color:var(--steel); font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:0.12em; padding:8px 14px; cursor:pointer; transition: border-color .2s, color .2s; }
@@ -469,23 +470,23 @@ function EddyConfigurator() {
         .stage { flex: 1 1 auto; min-width: 0; }
 
         .eyebrow { font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:0.3em; color: var(--orange); margin-bottom: 10px; }
-        h1.q { font-family:'Barlow Condensed'; font-weight:600; font-size: clamp(30px, 4.5vw, 46px); line-height:1.05; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.015em; }
-        .sub { color: #9AA7B4; font-size: 15px; margin: 0 0 30px; max-width: 52ch; }
+        h1.q { color: var(--blue); font-family:'Barlow Condensed'; font-weight:600; font-size: clamp(30px, 4.5vw, 46px); line-height:1.05; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.015em; }
+        .sub { color: #5A6B7E; font-size: 15px; margin: 0 0 30px; max-width: 52ch; }
 
         .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
         .card { text-align:left; background: var(--panel); border: 1px solid var(--line); padding: 0 0 18px; cursor:pointer; color: inherit; font-family:inherit;
                 transition: transform .15s ease, border-color .15s ease; display:flex; flex-direction:column; }
         .card:hover, .card:focus-visible { border-color: var(--orange); transform: translateY(-3px); outline: none; }
-        .cardArt { width:100%; height:auto; display:block; background: #16202B; border-bottom:1px solid var(--line); }
+        .cardArt { width:100%; height:auto; display:block; background: #EEF2F7; border-bottom:1px solid var(--line); }
         .cardPhoto { aspect-ratio: 160/115; object-fit: cover; }
         .card h3 { font-family:'Barlow Condensed'; font-size: 21px; font-weight:600; letter-spacing:0.02em; margin: 14px 16px 4px; text-transform: uppercase; }
-        .card p { margin: 0 16px; font-size: 13.5px; color:#9AA7B4; line-height:1.45; }
-        .photoNote { margin-top:auto; padding: 12px 16px 0; font-family:'IBM Plex Mono'; font-size: 9.5px; letter-spacing:0.14em; color:#44525F; }
+        .card p { margin: 0 16px; font-size: 13.5px; color:#5A6B7E; line-height:1.45; }
+        .photoNote { margin-top:auto; padding: 12px 16px 0; font-family:'IBM Plex Mono'; font-size: 9.5px; letter-spacing:0.14em; color:#9AA9BC; }
 
         .otherBox { margin-top: 20px; background: var(--panel); border: 1px solid var(--orange); padding: 18px 20px; max-width: 520px; }
         .otherBox label { display:block; font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing:0.2em; color: var(--orange); margin-bottom: 10px; }
         .otherRow { display:flex; gap: 10px; }
-        .otherRow input { flex:1; background:#141B23; border:1px solid var(--line); color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size: 14px; }
+        .otherRow input { flex:1; background:#FFFFFF; border:1px solid var(--line); color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size: 14px; }
         .otherRow input:focus-visible { outline:none; border-color: var(--orange); }
 
         .backbtn { margin-top: 26px; background:none; border:none; color: var(--steel); font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:0.12em; cursor:pointer; padding:6px 2px; }
@@ -496,25 +497,25 @@ function EddyConfigurator() {
         .sheet .row { display:flex; justify-content:space-between; gap:10px; padding: 11px 18px; border-bottom: 1px solid var(--line); font-family:'IBM Plex Mono'; font-size: 11.5px; }
         .sheet .row .k { color: var(--steel); letter-spacing:0.08em; }
         .sheet .row .v { color: var(--paper); text-align:right; }
-        .sheet .empty { padding: 16px 18px; color: #44525F; font-family:'IBM Plex Mono'; font-size: 11px; line-height: 1.7; }
+        .sheet .empty { padding: 16px 18px; color: #9AA9BC; font-family:'IBM Plex Mono'; font-size: 11px; line-height: 1.7; }
 
         .result { max-width: 760px; }
         .resultCard { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--orange); padding: 0; }
         .resultCard .cardArt { border-bottom: 1px solid var(--line); }
         .resultBody { padding: 22px 26px 26px; }
-        h2.fam { font-family:'Barlow Condensed'; font-weight:700; font-size: 32px; margin: 0 0 4px; text-transform:uppercase; letter-spacing:0.02em; }
-        .blurb { color:#B6C0CA; line-height: 1.55; margin: 0 0 16px; font-size: 15px; }
+        h2.fam { color: var(--blue); font-family:'Barlow Condensed'; font-weight:700; font-size: 32px; margin: 0 0 4px; text-transform:uppercase; letter-spacing:0.02em; }
+        .blurb { color:#445468; line-height: 1.55; margin: 0 0 16px; font-size: 15px; }
         .speclist { display:flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
-        .chip { font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing:0.06em; border: 1px solid var(--line); color:#9AA7B4; padding: 6px 10px; }
-        .disclaimer { font-size: 12.5px; color: #6B7A88; line-height:1.6; margin-top: 18px; border-left: 2px solid var(--line); padding-left: 12px; }
+        .chip { font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing:0.06em; border: 1px solid var(--line); color:#5A6B7E; padding: 6px 10px; }
+        .disclaimer { font-size: 12.5px; color: #7A8AA0; line-height:1.6; margin-top: 18px; border-left: 2px solid var(--line); padding-left: 12px; }
 
         .leadbox { margin-top: 26px; background: var(--panel); border: 1px solid var(--line); padding: 22px 26px; }
-        .leadbox h3 { font-family:'Barlow Condensed'; text-transform:uppercase; font-size: 20px; margin: 0 0 6px; letter-spacing:0.03em; }
-        .leadbox p { color:#9AA7B4; font-size: 13.5px; margin: 0 0 16px; }
+        .leadbox h3 { color: var(--blue); font-family:'Barlow Condensed'; text-transform:uppercase; font-size: 20px; margin: 0 0 6px; letter-spacing:0.03em; }
+        .leadbox p { color:#5A6B7E; font-size: 13.5px; margin: 0 0 16px; }
         .fields { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .fields input { background:#141B23; border:1px solid var(--line); color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size: 14px; width:100%; }
+        .fields input { background:#FFFFFF; border:1px solid var(--line); color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size: 14px; width:100%; }
         .fields input:focus-visible { outline:none; border-color: var(--orange); }
-        .cta { margin-top: 14px; background: var(--orange); border:none; color:#141B23; font-family:'Barlow Condensed'; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; font-size: 16px; padding: 13px 26px; cursor:pointer; }
+        .cta { margin-top: 14px; background: var(--orange); border:none; color:#FFFFFF; font-family:'Barlow Condensed'; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; font-size: 16px; padding: 13px 26px; cursor:pointer; }
         .cta:disabled { opacity: 0.4; cursor: default; }
         .cta:not(:disabled):hover { filter: brightness(1.08); }
         .thanks { font-family:'IBM Plex Mono'; color: var(--orange); font-size: 13px; letter-spacing:0.06em; line-height:1.7; }
@@ -529,7 +530,7 @@ function EddyConfigurator() {
 
       <div className="topbar">
         <div className="logo">
-          EDDY<span> PUMP</span>
+          <img className="logoImg" src="https://eddypump.com/wp-content/uploads/Asset-5.svg" alt="EDDY Pump" />
           <small>PUMP &amp; DREDGE CONFIGURATOR</small>
         </div>
         <button className="restart" onClick={restart}>START OVER</button>
