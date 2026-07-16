@@ -232,9 +232,11 @@ const QUESTIONS = {
     title: "How much material per hour?",
     sub: "Rough solids production target. We'll size the family, engineering confirms the number.",
     options: [
-      { id: "p_low", label: "Up to 70 cu yd/hr", desc: "Small ponds, maintenance dredging.", art: "flow" },
-      { id: "p_mid", label: "70–200 cu yd/hr", desc: "Mid-size projects, canals, marinas.", art: "flow" },
-      { id: "p_high", label: "200+ cu yd/hr", desc: "Large-scale or continuous production dredging.", art: "flow" },
+      { id: "p_150", label: "Up to 150 cu yd/hr", desc: "Small ponds, maintenance dredging.", art: "flow" },
+      { id: "p_200", label: "150–200 cu yd/hr", desc: "Mid-size projects, canals, marinas.", art: "flow" },
+      { id: "p_300", label: "200–300 cu yd/hr", desc: "Sustained production dredging.", art: "flow" },
+      { id: "p_350", label: "300–350 cu yd/hr", desc: "High-production projects.", art: "flow" },
+      { id: "p_600", label: "350–600 cu yd/hr", desc: "Maximum production duty.", art: "flow" },
     ],
   },
   flow_pump: {
@@ -327,15 +329,24 @@ function recommend(a) {
   const drive = power === "diesel" ? "Diesel drive package" : power === "hydraulic" ? "Hydraulic drive package" : "Electric motor drive";
 
   if (application === "dredging") {
+    /* Production (cu yd/hr) -> pump size class, per EDDY Pump platform specs */
+    const ds = {
+      p_150: { size: "4-in", exf: "EXF-4000", gpm: "250–1,200 GPM", prod: "75–150 cu yd/hr" },
+      p_200: { size: "6-in", exf: "EXF-6000", gpm: "450–2,500 GPM", prod: "150–200 cu yd/hr" },
+      p_300: { size: "8-in", exf: "EXF-8000", gpm: "1,400–3,600 GPM", prod: "250–300 cu yd/hr" },
+      p_350: { size: "10-in", exf: "EXF-10000", gpm: "1,600–5,000 GPM", prod: "300–350 cu yd/hr" },
+      p_600: { size: "12-in", exf: "EXF-12000", gpm: "2,600–7,300 GPM", prod: "500–600 cu yd/hr" },
+    }[production] || { size: "8-in", exf: "EXF-8000", gpm: "1,400–3,600 GPM", prod: "250–300 cu yd/hr" };
+    const sizeSpecs = [ds.size + " discharge class", ds.gpm + " flow range"];
     const fam = {
-      excavator: { family: "Excavator Dredge Pump Attachment", art: "excavator", blurb: "Mounts to the stick of your excavator and turns it into a production dredge. Hydraulic drive runs straight off the machine's auxiliary circuit.", specs: ["Runs off excavator hydraulics", "Cutterhead options for hard-packed material", "Rapid mobilization"] },
-      cable: { family: "Cable-Deployed Dredge Pump", art: "cable", blurb: "Lowered by crane or cable from shore, barge, or gantry. Available in electric or hydraulic drive with water-jetting rings for fast-settling material.", specs: [drive, "Optional water jetting ring", "High-solids, non-clog design"] },
-      remote: { family: "Subdredge™ Remote-Operated Dredge", art: "remote", blurb: "A crewless, self-propelled dredge driven from shore — built around the EDDY Pump non-clog design for high-solids production without divers or support boats.", specs: ["Remote operation from shore", "EDDY Pump non-clog rotor", "High-solids slurry output"] },
-      sled: { family: "Dredge Sled", art: "sled", blurb: "The EDDY Pump mounted on a skid frame, winched across the bottom from shore — steady production with a minimal equipment footprint.", specs: ["Winch-guided from shore", "Low equipment footprint", "High-solids, non-clog design"] },
-      diver: { family: "Diver-Operated Dredge", art: "diver", blurb: "A diver-guided EDDY Pump for precise removal in confined or sensitive areas where larger equipment can't work.", specs: ["Precise, diver-directed dredging", "Confined and sensitive areas", "Non-clog high-solids design"] },
-      auger: { family: "Mini Auger ModDredge", art: "auger", blurb: "A compact auger dredge for lagoons, small ponds, and tight footprints — the auger feeds settled material straight into the EDDY Pump.", specs: ["Compact footprint", "Auger-fed for settled solids", "Ideal for lagoons and small ponds"] },
+      excavator: { family: ds.exf + " Excavator Dredge Pump Attachment (" + ds.size + ")", art: "excavator", blurb: "Mounts to the stick of your excavator and turns it into a production dredge. Hydraulic drive runs straight off the machine's auxiliary circuit.", specs: [...sizeSpecs, "Runs off excavator hydraulics", "Cutterhead options for hard-packed material"] },
+      cable: { family: "Cable-Deployed Dredge Pump — " + ds.size + " Class", art: "cable", blurb: "Lowered by crane or cable from shore, barge, or gantry. Available in electric or hydraulic drive with water-jetting rings for fast-settling material.", specs: [...sizeSpecs, drive, "Optional water jetting ring"] },
+      remote: { family: "Subdredge™ Remote-Operated Dredge — " + ds.size + " Class", art: "remote", blurb: "A crewless, self-propelled dredge driven from shore — built around the EDDY Pump non-clog design for high-solids production without divers or support boats.", specs: [...sizeSpecs, "Remote operation from shore", "EDDY Pump non-clog rotor"] },
+      sled: { family: "Dredge Sled — " + ds.size + " Class", art: "sled", blurb: "The EDDY Pump mounted on a skid frame, winched across the bottom from shore — steady production with a minimal equipment footprint.", specs: [...sizeSpecs, "Winch-guided from shore", "Low equipment footprint"] },
+      diver: { family: "Diver-Operated Dredge — " + ds.size + " Class", art: "diver", blurb: "A diver-guided EDDY Pump for precise removal in confined or sensitive areas where larger equipment can't work.", specs: [...sizeSpecs, "Precise, diver-directed dredging", "Confined and sensitive areas"] },
+      auger: { family: "Mini Auger ModDredge — " + ds.size + " Class", art: "auger", blurb: "A compact auger dredge for lagoons, small ponds, and tight footprints — the auger feeds settled material straight into the EDDY Pump.", specs: [...sizeSpecs, "Compact footprint", "Auger-fed for settled solids"] },
     }[deployment];
-    return fam || { family: "EDDY Dredge System", art: "dredging", blurb: "Our engineering team will match the right dredge configuration to your project.", specs: ["High-solids, non-clog design"] };
+    return fam || { family: "EDDY Dredge System", art: "dredging", blurb: "Our engineering team will match the right dredge configuration to your project.", specs: sizeSpecs };
   }
 
   // Process pump path
