@@ -392,6 +392,7 @@ function EddyConfigurator() {
   const stepTopRef = useRef(null);
   const headingRef = useRef(null);
   const quoteRef = useRef(null);
+  const lastPayloadSignatureRef = useRef(null);
 
   const track = buildTrack(answers);
   const currentQid = track[stepIdx];
@@ -406,6 +407,12 @@ function EddyConfigurator() {
     headingRef.current?.focus({ preventScroll: true });
     stepTopRef.current?.scrollIntoView({ block: "start" });
   }, [stepIdx, done]);
+
+  const goToQuote = () => {
+    if (!quoteRef.current) return;
+    quoteRef.current.scrollIntoView({ block: "start" });
+    quoteRef.current.focus({ preventScroll: true });
+  };
 
   const advance = (next) => {
     setAnswers(next);
@@ -468,6 +475,7 @@ function EddyConfigurator() {
     setSubmitError("");
     setSubmissionId("");
     setIdempotencyKey(newIdempotencyKey());
+    lastPayloadSignatureRef.current = null;
   };
 
   const numberOrNull = (value) => value === "" ? null : Number(value);
@@ -479,38 +487,46 @@ function EddyConfigurator() {
       return;
     }
 
+    const submissionData = {
+      customer: { ...lead, name: lead.name.trim(), email: lead.email.trim() },
+      answers: {
+        application: answers.application,
+        material: answers.material,
+        materialOther: answers.material === "other" ? answers.materialOther : null,
+        production: answers.production,
+        head: answers.head || null,
+        power: answers.power,
+        deployment: answers.deployment,
+      },
+      project_details: {
+        discharge_distance_ft: numberOrNull(project.discharge_distance_ft),
+        elevation_gain_ft: numberOrNull(project.elevation_gain_ft),
+        water_depth_ft: numberOrNull(project.water_depth_ft),
+        solids_size_in: numberOrNull(project.solids_size_in),
+        specific_gravity: numberOrNull(project.specific_gravity),
+        percent_solids: numberOrNull(project.percent_solids),
+        excavator_model: project.excavator_model || null,
+        pipe_diameter_in: numberOrNull(project.pipe_diameter_in),
+        notes: project.notes || null,
+      },
+      consent: true,
+      website,
+    };
+    const payloadSignature = JSON.stringify(submissionData);
+    let requestKey = idempotencyKey;
+    if (lastPayloadSignatureRef.current && lastPayloadSignatureRef.current !== payloadSignature) {
+      requestKey = newIdempotencyKey();
+      setIdempotencyKey(requestKey);
+    }
+    lastPayloadSignatureRef.current = payloadSignature;
+
     setSubmitting(true);
     setSubmitError("");
     try {
       const response = await fetch(`${API_BASE}/v1/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idempotency_key: idempotencyKey,
-          customer: { ...lead, name: lead.name.trim(), email: lead.email.trim() },
-          answers: {
-            application: answers.application,
-            material: answers.material,
-            materialOther: answers.material === "other" ? answers.materialOther : null,
-            production: answers.production,
-            head: answers.head || null,
-            power: answers.power,
-            deployment: answers.deployment,
-          },
-          project_details: {
-            discharge_distance_ft: numberOrNull(project.discharge_distance_ft),
-            elevation_gain_ft: numberOrNull(project.elevation_gain_ft),
-            water_depth_ft: numberOrNull(project.water_depth_ft),
-            solids_size_in: numberOrNull(project.solids_size_in),
-            specific_gravity: numberOrNull(project.specific_gravity),
-            percent_solids: numberOrNull(project.percent_solids),
-            excavator_model: project.excavator_model || null,
-            pipe_diameter_in: numberOrNull(project.pipe_diameter_in),
-            notes: project.notes || null,
-          },
-          consent: true,
-          website,
-        }),
+        body: JSON.stringify({ idempotency_key: requestKey, ...submissionData }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(apiErrorMessage(result.detail));
@@ -534,7 +550,7 @@ function EddyConfigurator() {
     <div className="cfg">
       <style>{`
         .cfg { min-height: 100vh; background: #ffffff; color: #1C2B3A; font-family: 'Barlow', sans-serif;
-               --blue: #244A9E; --orange: #C94F0A; --steel: #6B7A8D; --panel: #F5F7FA; --line: #DCE3EC; --paper: #1C2B3A; }
+               --blue: #244A9E; --orange: #B94708; --steel: #6B7A8D; --panel: #F5F7FA; --line: #DCE3EC; --paper: #1C2B3A; }
         .cfg * { box-sizing: border-box; }
 
         .topbar { display:flex; align-items:center; justify-content:space-between; gap:24px; padding: 12px 28px; border-bottom: 3px solid var(--blue); background: #ffffff; }
@@ -594,7 +610,7 @@ function EddyConfigurator() {
         .sheet .row { display:flex; justify-content:space-between; gap:10px; padding: 13px 18px; border-bottom: 1px solid var(--line); font-family:'IBM Plex Mono'; font-size: 13px; line-height:1.45; }
         .sheet .row .k { color: #526477; letter-spacing:0.04em; }
         .sheet .row .v { color: var(--paper); text-align:right; }
-        .sheet .empty { padding: 16px 18px; color: #66778B; font-family:'IBM Plex Mono'; font-size: 13px; line-height: 1.6; }
+        .sheet .empty { padding: 16px 18px; color: #526477; font-family:'IBM Plex Mono'; font-size: 13px; line-height: 1.6; }
 
         .result { max-width: 760px; }
         .resultActions { margin:0 0 16px; }
@@ -609,16 +625,17 @@ function EddyConfigurator() {
         .chip { font-family:'IBM Plex Mono'; font-size: 13px; letter-spacing:0.03em; border: 1px solid var(--line); color:#445468; padding: 8px 11px; }
         .disclaimer { font-size: 14px; color: #5F7084; line-height:1.6; margin-top: 18px; border-left: 3px solid var(--line); padding-left: 12px; }
 
-        .leadbox { margin-top: 22px; background: var(--panel); border: 1px solid var(--line); border-top:3px solid var(--blue); padding: 24px 26px; }
+        .leadbox { margin-top: 22px; background: var(--panel); border: 1px solid var(--line); border-top:3px solid var(--blue); padding: 24px 26px; scroll-margin-top:16px; }
+        .leadbox:focus { outline:3px solid rgba(36,74,158,.24); outline-offset:3px; }
         .leadbox h3 { color: var(--blue); font-family:'Barlow Condensed'; text-transform:uppercase; font-size: 28px; line-height:1.12; margin: 0 0 8px; letter-spacing:0.02em; }
         .leadbox p { color:#445468; font-size: 16px; line-height:1.5; margin: 0 0 18px; }
         .sectionLabel { grid-column: 1 / -1; font-family:'IBM Plex Mono'; font-size:13px; letter-spacing:.1em; color:var(--orange); margin-top:4px; }
         .fields { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .fieldGroup { display:flex; flex-direction:column; gap:7px; }
         .fieldGroup label { color:var(--paper); font-size:15px; font-weight:600; }
-        .fieldGroup label span { color:#66778B; font-weight:400; margin-left:4px; }
+        .fieldGroup label span { color:#526477; font-weight:400; margin-left:4px; }
         .fieldError { color:#9B1C13; font-size:14px; font-weight:600; line-height:1.35; }
-        .fields input, .fields textarea { background:#FFFFFF; border:1px solid #BFC9D6; color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size:16px; min-height:48px; width:100%; }
+        .fields input, .fields textarea { background:#FFFFFF; border:1px solid #7A8AA0; color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size:16px; min-height:48px; width:100%; }
         .fields textarea { grid-column: 1 / -1; min-height:96px; resize:vertical; }
         .fields input:focus-visible, .fields textarea:focus-visible { outline:3px solid rgba(242,106,33,.22); outline-offset:1px; border-color: var(--orange); }
         .consentRow { display:flex; align-items:flex-start; gap:12px; margin-top:16px; color:#33465A; font-size:15px; line-height:1.5; cursor:pointer; }
@@ -663,6 +680,8 @@ function EddyConfigurator() {
           .card h3 { grid-column:2; grid-row:1; margin:14px 14px 3px; font-size:21px; }
           .card p { grid-column:2; grid-row:2; margin:0 14px; font-size:15px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
           .cardCue { grid-column:2; grid-row:3; align-self:end; padding:10px 14px 13px; font-size:12px; }
+          .otherRow { flex-direction:column; }
+          .otherRow input { min-width:0; width:100%; }
           .resultCard .cardArt { height:150px; }
           .resultBody, .leadbox { padding:20px 18px; }
           h2.fam { font-size:32px; }
@@ -757,7 +776,7 @@ function EddyConfigurator() {
               </div>
               <div className="eyebrow">PRELIMINARY RECOMMENDATION</div>
               <div className="resultActions">
-                <button className="quoteJump" onClick={() => quoteRef.current?.scrollIntoView({ block: "start" })}>Get fast project pricing ↓</button>
+                <button className="quoteJump" onClick={goToQuote}>Request fast project pricing ↓</button>
               </div>
               <div className="resultCard">
                 <CardImage kind={rec.art} />
@@ -775,9 +794,9 @@ function EddyConfigurator() {
                 </div>
               </div>
 
-              <div className="leadbox" ref={quoteRef}>
+              <div className="leadbox" ref={quoteRef} tabIndex="-1" aria-label="Project pricing request">
                 {!submitted ? (
-                  <form onSubmit={(event) => { event.preventDefault(); handleSubmit(); }} noValidate>
+                  <form onSubmit={(event) => { event.preventDefault(); if (event.currentTarget.reportValidity()) handleSubmit(); }}>
                     <h3>Get fast project pricing &amp; a spec sheet</h3>
                     <p>Send this preliminary configuration to request fast, engineering-reviewed project pricing and a matching spec sheet.</p>
                     <div className="fields">
@@ -826,7 +845,7 @@ function EddyConfigurator() {
                     <div className="secureNote">ENGINEERING REVIEW REQUIRED BEFORE FIRM EQUIPMENT SELECTION OR PRICING</div>
                     {submitError && <div className="submitError" role="alert">{submitError}</div>}
                     <button className="cta" type="submit" disabled={!lead.name.trim() || !validEmail(lead.email) || !consent || submitting}>
-                      {submitting ? "Sending securely…" : "Get my project quote"}
+                      {submitting ? "Sending securely…" : "Submit my pricing request"}
                     </button>
                   </form>
                 ) : (
