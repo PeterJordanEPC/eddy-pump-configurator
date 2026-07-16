@@ -310,6 +310,8 @@ function buildTrack(a) {
   return ["application"];
 }
 
+const SELECT_QUESTION_IDS = new Set(["production_dredge", "flow_pump"]);
+
 /* ---------- Recommendation engine ---------- */
 /* GPM -> pump size class. NOTE: 5-in pump intentionally never recommended. */
 const PUMP_SIZE = {
@@ -424,16 +426,26 @@ function EddyConfigurator() {
   };
 
   const back = () => {
+    const targetIdx = done ? track.length - 1 : stepIdx - 1;
+    if (targetIdx < 0) return;
+
+    const next = { ...answers };
+    track.slice(targetIdx).forEach((qid) => {
+      delete next[QUESTIONS[qid].key];
+    });
+    if (!next.material) delete next.materialOther;
+    setAnswers(next);
+    setShowOther(false);
+    setOtherText("");
+
     if (done) {
       setIdempotencyKey(newIdempotencyKey());
       setSubmissionId("");
       setSubmitError("");
-      setDone(false);
-      setSubmitted(false);
-      return;
     }
-    setShowOther(false);
-    if (stepIdx > 0) setStepIdx(stepIdx - 1);
+    setDone(false);
+    setSubmitted(false);
+    setStepIdx(targetIdx);
   };
 
   const restart = () => {
@@ -552,6 +564,12 @@ function EddyConfigurator() {
         .cardCue { margin-top:auto; padding:14px 16px 0; font-family:'IBM Plex Mono'; font-size:10px; letter-spacing:.1em; color:var(--blue); }
         .cardCue::after { content:'  →'; color:var(--orange); }
 
+        .flowSelect { max-width:620px; padding:22px; background:var(--panel); border:1px solid var(--line); }
+        .flowSelect label { display:block; margin-bottom:10px; color:var(--blue); font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:.13em; }
+        .flowSelect select { width:100%; min-height:52px; padding:12px 44px 12px 14px; border:1px solid var(--line); border-radius:0; background:#FFFFFF; color:var(--paper); font-family:'Barlow'; font-size:16px; cursor:pointer; }
+        .flowSelect select:focus-visible { outline:3px solid rgba(242,106,33,.28); outline-offset:2px; border-color:var(--orange); }
+        .flowHint { margin:10px 0 0; color:var(--steel); font-size:13px; line-height:1.45; }
+
         .otherBox { margin-top: 20px; background: var(--panel); border: 1px solid var(--orange); padding: 18px 20px; max-width: 520px; }
         .otherBox label { display:block; font-family:'IBM Plex Mono'; font-size: 11px; letter-spacing:0.2em; color: var(--orange); margin-bottom: 10px; }
         .otherRow { display:flex; gap: 10px; }
@@ -648,16 +666,34 @@ function EddyConfigurator() {
               <h1 className="q">{question.title}</h1>
               {question.sub && <p className="sub">{question.sub}</p>}
               {stepIdx === 0 && <div className="trustLine" aria-label="Configurator benefits"><span>About 2 minutes</span><span>No account required</span><span>Engineering-reviewed</span></div>}
-              <div className="grid">
-                {question.options.map((opt) => (
-                  <button key={opt.id} className="card" onClick={() => pick(opt)}>
-                    <CardImage kind={opt.art} />
-                    <h3>{opt.label}</h3>
-                    <p>{opt.desc}</p>
-                    <div className="cardCue">SELECT</div>
-                  </button>
-                ))}
-              </div>
+              {SELECT_QUESTION_IDS.has(currentQid) ? (
+                <div className="flowSelect">
+                  <label htmlFor="flow-rate-selection">
+                    {currentQid === "production_dredge" ? "SELECT PRODUCTION TARGET" : "SELECT FLOW-RATE RANGE"}
+                  </label>
+                  <select id="flow-rate-selection" value="" onChange={(event) => {
+                    const option = question.options.find((item) => item.id === event.target.value);
+                    if (option) pick(option);
+                  }}>
+                    <option value="" disabled>Choose the closest range…</option>
+                    {question.options.map((opt) => (
+                      <option key={opt.id} value={opt.id}>{opt.label} — {opt.desc}</option>
+                    ))}
+                  </select>
+                  <p className="flowHint">Select the closest range. An EDDY Pump engineer will confirm the final duty point.</p>
+                </div>
+              ) : (
+                <div className="grid">
+                  {question.options.map((opt) => (
+                    <button key={opt.id} className="card" onClick={() => pick(opt)}>
+                      <CardImage kind={opt.art} />
+                      <h3>{opt.label}</h3>
+                      <p>{opt.desc}</p>
+                      <div className="cardCue">SELECT</div>
+                    </button>
+                  ))}
+                </div>
+              )}
               {showOther && (
                 <div className="otherBox">
                   <label htmlFor="other-material">WHAT ARE YOU MOVING?</label>
