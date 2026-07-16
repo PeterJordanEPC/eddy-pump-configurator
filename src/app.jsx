@@ -254,7 +254,7 @@ const QUESTIONS = {
     key: "head",
     eyebrow: "STEP — DISCHARGE HEAD",
     title: "What's your total discharge head?",
-    sub: "High-head duty in this flow range calls for a different pump.",
+    sub: "Head is captured for engineering review; it does not change the flow-sized pump, selected configuration, or power.",
     options: [
       { id: "h_under", label: "Under 120 ft", desc: "Standard discharge head.", art: "flow" },
       { id: "h_over", label: "Over 120 ft", desc: "High-head duty.", art: "flow" },
