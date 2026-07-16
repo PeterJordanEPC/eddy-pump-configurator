@@ -22,6 +22,7 @@ const checks = [
     "300–350 cu yd/hr (1,600–5,000 GPM)",
     "500–600 cu yd/hr (2,600–7,300 GPM)",
   ].every((range) => source.includes(range)), "dredge production options include exact platform GPM ranges"],
+  [source.includes("Pump size comes from this production/GPM range") && source.includes("deployment choice determines the dredge system type"), "dredge sizing and deployment responsibilities are explicit"],
   [source.includes("<details className=\"projectDetails\">"), "optional engineering fields are progressive disclosure"],
   [!source.includes("PHOTO PLACEHOLDER"), "prototype placeholder copy removed"],
   [bundle.length > 1000 && bundle.length < 100000, "production bundle has expected size"],

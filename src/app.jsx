@@ -680,7 +680,11 @@ function EddyConfigurator() {
                       <option key={opt.id} value={opt.id}>{opt.label} — {opt.desc}</option>
                     ))}
                   </select>
-                  <p className="flowHint">Select the closest range. An EDDY Pump engineer will confirm the final duty point.</p>
+                  <p className="flowHint">
+                    {currentQid === "production_dredge"
+                      ? "Pump size comes from this production/GPM range; your deployment choice determines the dredge system type—excavator attachment, cable-deployed pump, Subdredge, dredge sled, diver-operated dredge, or Mini Auger ModDredge."
+                      : "Flow rate determines pump size. Your deployment choice determines the pump configuration. An EDDY Pump engineer will confirm the final duty point."}
+                  </p>
                 </div>
               ) : (
                 <div className="grid">
