@@ -13,7 +13,7 @@ const apiErrorMessage = (detail) => {
    EDDY PUMP — GUIDED PUMP & DREDGE CONFIGURATOR (PROTOTYPE)
    Two tracks: Dredging | Process Pump
    GPM ranges map directly to pump size class (no 5-in ever).
-   50–200 GPM + head over 120 ft => HH2000 High-Head Pump.
+   Head is retained for engineering review and never overrides deployment or power.
    Secure lead intake posts to the Railway API; customer-facing sends remain approval-gated.
    ============================================================ */
 
@@ -240,7 +240,7 @@ const QUESTIONS = {
     sub: "Ballpark is fine — this maps directly to a pump size.",
     options: [
       { id: "f_5_50", label: "5–50 GPM (1-in Pump)", desc: "Light transfer duty.", art: "flow" },
-      { id: "f_50_200", label: "50–200 GPM (2-in Pump; HH2000 above 120 ft head)", desc: "Small process lines.", art: "flow" },
+      { id: "f_50_200", label: "50–200 GPM (2-in Pump)", desc: "Small process lines.", art: "flow" },
       { id: "f_200_400", label: "200–400 GPM (3-in Pump)", desc: "Light plant duty.", art: "flow" },
       { id: "f_400_900", label: "400–900 GPM (4-in Pump)", desc: "Typical plant transfer.", art: "flow" },
       { id: "f_900_1600", label: "900–1,600 GPM (6-in Pump)", desc: "Heavy plant duty.", art: "flow" },
@@ -319,6 +319,7 @@ const PUMP_SIZE = {
   f_900_1600: "6-in", f_1600_2500: "8-in", f_2500_3500: "10-in",
   f_3500_6000: "12-in", f_6000_12000: "16-in",
 };
+const PROCESS_POWER = { electric: "Electric", hydraulic: "Hydraulic", diesel: "Diesel-Powered" };
 
 function recommend(a) {
   const { application, production, power, deployment, head } = a;
@@ -345,22 +346,15 @@ function recommend(a) {
     return fam || { family: "EDDY Dredge System", art: "dredging", blurb: "Our engineering team will match the right dredge configuration to your project.", specs: sizeSpecs };
   }
 
-  // Process pump path
-  if (production === "f_50_200" && head === "h_over") {
-    return {
-      family: "EDDY HH2000 High-Head Pump",
-      art: "slurry",
-      blurb: "Purpose-built for high-head duty — 50–200 GPM with discharge head over 120 ft is exactly what the HH2000 was designed to do, with the same non-clog EDDY rotor.",
-      specs: ["High-head design (120+ ft)", "50–200 GPM duty range", drive, "Non-clog high-solids design"],
-    };
-  }
+  // Process pump path: flow sets size; deployment and power remain authoritative.
   const size = PUMP_SIZE[production] || "4-in";
   const config = { flooded: { label: "Flooded Suction Pump", art: "flooded" }, submersible: { label: "Submersible Pump", art: "submersible" }, selfpriming: { label: "Self-Priming Pump", art: "selfpriming" } }[deployment] || { label: "Process Pump", art: "slurry" };
+  const headSpecs = head === "h_over" ? ["120+ ft head — engineering review required"] : [];
   return {
-    family: `EDDY Pump ${size} ${config.label}`,
+    family: `EDDY Pump ${size} ${config.label} — ${PROCESS_POWER[a.power] || "Specified drive"}`,
     art: config.art,
     blurb: "The core EDDY Pump design: a geometrically induced eddy current instead of a close-tolerance impeller — high solids tolerance, low wear, no clogging on the material you described.",
-    specs: [`${size} discharge class`, config.label + " configuration", drive, "Passes large solids without clogging"],
+    specs: [`${size} discharge class`, config.label + " configuration", drive, ...headSpecs, "Passes large solids without clogging"],
   };
 }
 
