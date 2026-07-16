@@ -424,7 +424,14 @@ function EddyConfigurator() {
   };
 
   const back = () => {
-    if (done) { setDone(false); setSubmitted(false); return; }
+    if (done) {
+      setIdempotencyKey(newIdempotencyKey());
+      setSubmissionId("");
+      setSubmitError("");
+      setDone(false);
+      setSubmitted(false);
+      return;
+    }
     setShowOther(false);
     if (stepIdx > 0) setStepIdx(stepIdx - 1);
   };
@@ -653,9 +660,9 @@ function EddyConfigurator() {
               </div>
               {showOther && (
                 <div className="otherBox">
-                  <label>WHAT ARE YOU MOVING?</label>
+                  <label htmlFor="other-material">WHAT ARE YOU MOVING?</label>
                   <div className="otherRow">
-                    <input autoFocus placeholder="e.g. drilling mud, fly ash, fish waste…" value={otherText}
+                    <input id="other-material" autoFocus placeholder="e.g. drilling mud, fly ash, fish waste…" value={otherText}
                       onChange={(e) => setOtherText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") continueOther(); }} />
                     <button className="cta" style={{marginTop: 0}} disabled={!otherText.trim()} onClick={continueOther}>Continue</button>

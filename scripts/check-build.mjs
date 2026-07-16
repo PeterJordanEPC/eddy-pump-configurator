@@ -11,6 +11,8 @@ const checks = [
   [index.includes("images/eddy-pump-corporation-logo.webp") || source.includes("images/eddy-pump-corporation-logo.webp"), "local corporate logo used"],
   [source.includes('window.location.protocol !== "https:"'), "HTTPS submission guard present"],
   [source.includes("validEmail") && source.includes("consent"), "email and consent validation present"],
+  [/if \(done\) \{[\s\S]*?setIdempotencyKey\(newIdempotencyKey\(\)\);[\s\S]*?setDone\(false\);[\s\S]*?return;/.test(source), "changed answers receive a fresh idempotency key"],
+  [source.includes('htmlFor="other-material"') && source.includes('id="other-material"'), "other-material input has an associated label"],
   [source.includes("<details className=\"projectDetails\">"), "optional engineering fields are progressive disclosure"],
   [!source.includes("PHOTO PLACEHOLDER"), "prototype placeholder copy removed"],
   [bundle.length > 1000 && bundle.length < 100000, "production bundle has expected size"],
