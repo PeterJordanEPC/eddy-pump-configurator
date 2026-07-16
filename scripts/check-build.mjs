@@ -24,7 +24,7 @@ const checks = [
   ].every((range) => source.includes(range)), "dredge production options include exact platform GPM ranges"],
   [[
     "5–50 GPM (1-in Pump)",
-    "50–200 GPM (2-in Pump; HH2000 above 120 ft head)",
+    "50–200 GPM (2-in Pump)",
     "200–400 GPM (3-in Pump)",
     "400–900 GPM (4-in Pump)",
     "900–1,600 GPM (6-in Pump)",
@@ -33,6 +33,7 @@ const checks = [
     "3,500–6,000 GPM (12-in Pump)",
     "6,000–12,000 GPM (16-in Pump)",
   ].every((range) => source.includes(range)) && !source.includes("(5-in Pump)"), "process flow options include exact pump sizes and exclude 5-in"],
+  [!source.includes("HH2000") && source.includes("${PROCESS_POWER[a.power] || \"Specified drive\"}"), "process recommendation preserves deployment and includes selected power without HH2000 override"],
   [source.includes("Pump size comes from this production/GPM range") && source.includes("deployment choice determines the dredge system type"), "dredge sizing and deployment responsibilities are explicit"],
   [source.includes("<details className=\"projectDetails\">"), "optional engineering fields are progressive disclosure"],
   [!source.includes("PHOTO PLACEHOLDER"), "prototype placeholder copy removed"],
