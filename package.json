@@ -1,0 +1,12 @@
+{
+  "name": "eddy-pump-configurator",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/app.jsx --bundle --format=iife --target=es2020 --jsx-factory=React.createElement --jsx-fragment=React.Fragment --minify --legal-comments=none --outfile=app.js",
+    "check": "npm run build && node scripts/check-build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
