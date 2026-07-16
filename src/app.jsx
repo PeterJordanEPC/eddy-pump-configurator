@@ -226,11 +226,11 @@ const QUESTIONS = {
     title: "How much material per hour?",
     sub: "Rough solids production target. We'll size the family, engineering confirms the number.",
     options: [
-      { id: "p_150", label: "Up to 150 cu yd/hr", desc: "Small ponds, maintenance dredging.", art: "flow" },
-      { id: "p_200", label: "150–200 cu yd/hr", desc: "Mid-size projects, canals, marinas.", art: "flow" },
-      { id: "p_300", label: "200–300 cu yd/hr", desc: "Sustained production dredging.", art: "flow" },
-      { id: "p_350", label: "300–350 cu yd/hr", desc: "High-production projects.", art: "flow" },
-      { id: "p_600", label: "350–600 cu yd/hr", desc: "Maximum production duty.", art: "flow" },
+      { id: "p_150", label: "75–150 cu yd/hr (250–1,200 GPM)", desc: "Small ponds, maintenance dredging.", art: "flow" },
+      { id: "p_200", label: "150–200 cu yd/hr (450–2,500 GPM)", desc: "Mid-size projects, canals, marinas.", art: "flow" },
+      { id: "p_300", label: "250–300 cu yd/hr (1,400–3,600 GPM)", desc: "Sustained production dredging.", art: "flow" },
+      { id: "p_350", label: "300–350 cu yd/hr (1,600–5,000 GPM)", desc: "High-production projects.", art: "flow" },
+      { id: "p_600", label: "500–600 cu yd/hr (2,600–7,300 GPM)", desc: "Maximum production duty.", art: "flow" },
     ],
   },
   flow_pump: {

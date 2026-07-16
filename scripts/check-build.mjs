@@ -15,6 +15,13 @@ const checks = [
   [source.includes('htmlFor="other-material"') && source.includes('id="other-material"'), "other-material input has an associated label"],
   [source.includes('const SELECT_QUESTION_IDS = new Set(["production_dredge", "flow_pump"]);') && source.includes('<select id="flow-rate-selection"'), "dredge and pump flow questions use a compact dropdown"],
   [/track\.slice\(targetIdx\)[\s\S]*?delete next\[QUESTIONS\[qid\]\.key\][\s\S]*?setAnswers\(next\)/.test(source), "Back removes the target and downstream selections"],
+  [[
+    "75–150 cu yd/hr (250–1,200 GPM)",
+    "150–200 cu yd/hr (450–2,500 GPM)",
+    "250–300 cu yd/hr (1,400–3,600 GPM)",
+    "300–350 cu yd/hr (1,600–5,000 GPM)",
+    "500–600 cu yd/hr (2,600–7,300 GPM)",
+  ].every((range) => source.includes(range)), "dredge production options include exact platform GPM ranges"],
   [source.includes("<details className=\"projectDetails\">"), "optional engineering fields are progressive disclosure"],
   [!source.includes("PHOTO PLACEHOLDER"), "prototype placeholder copy removed"],
   [bundle.length > 1000 && bundle.length < 100000, "production bundle has expected size"],
