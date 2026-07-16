@@ -393,6 +393,7 @@ function EddyConfigurator() {
   const headingRef = useRef(null);
   const quoteRef = useRef(null);
   const lastPayloadSignatureRef = useRef(null);
+  const hasTransitionedRef = useRef(false);
 
   const track = buildTrack(answers);
   const currentQid = track[stepIdx];
@@ -404,6 +405,10 @@ function EddyConfigurator() {
   const emailInvalid = touched.email && !validEmail(lead.email);
 
   useEffect(() => {
+    if (!hasTransitionedRef.current) {
+      hasTransitionedRef.current = true;
+      return;
+    }
     headingRef.current?.focus({ preventScroll: true });
     stepTopRef.current?.scrollIntoView({ block: "start" });
   }, [stepIdx, done]);
