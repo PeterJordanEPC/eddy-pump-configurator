@@ -557,6 +557,8 @@ function EddyConfigurator() {
 
         .topbar { display:flex; align-items:center; justify-content:space-between; gap:24px; padding: 12px 28px; border-bottom: 3px solid var(--blue); background: #ffffff; }
         .brand { display:flex; align-items:center; gap:18px; min-width:0; }
+        .brandHome { appearance:none; background:none; border:0; padding:0; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+        .brandHome:focus-visible { outline:3px solid rgba(242,106,33,.35); outline-offset:6px; }
         .logoImg { width: 260px; max-width:42vw; height:auto; display:block; }
         .brandDivider { width:1px; height:36px; background:var(--line); }
         .productName { font-family:'IBM Plex Mono'; font-size:10px; letter-spacing:0.18em; line-height:1.55; color:var(--steel); text-transform:uppercase; }
@@ -695,11 +697,11 @@ function EddyConfigurator() {
       `}</style>
 
       <header className="topbar">
-        <div className="brand">
+        <a className="brand brandHome" href="/" aria-label="Start over from the beginning">
           <img className="logoImg" src="images/eddy-pump-corporation-logo.webp" width="800" height="166" alt="EDDY Pump Corporation" />
           <span className="brandDivider" aria-hidden="true"></span>
           <span className="productName">Pump &amp; Dredge<br />Configurator</span>
-        </div>
+        </a>
         <button className="restart" onClick={restart}>START OVER</button>
       </header>
 

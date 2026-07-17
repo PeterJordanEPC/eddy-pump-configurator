@@ -38,6 +38,7 @@ const checks = [
   [!source.includes("HH2000") && source.includes("${PROCESS_POWER[a.power] || \"Specified drive\"}"), "process recommendation preserves deployment and includes selected power without HH2000 override"],
   [source.includes("Head is captured for engineering review") && !readme.includes("HH2000"), "high-head guidance matches non-overriding recommendation rule"],
   [source.includes('className="stepNav"') && source.includes("← Back to previous question"), "Back navigation is placed at the top of each revisable step"],
+  [source.includes('className="brand brandHome"') && source.includes('href="/"') && source.includes('aria-label="Start over from the beginning"'), "header logo is an accessible start-over link"],
   [source.includes("headingRef") && source.includes("hasTransitionedRef") && source.includes("scrollIntoView"), "step changes return focus and viewport to the question heading without scrolling initial load"],
   [["contact-name", "contact-email", "contact-company", "contact-phone"].every((id) => source.includes(`htmlFor="${id}"`) && source.includes(`id="${id}"`)), "contact fields use persistent visible labels"],
   [source.includes("Submit my pricing request") && source.includes("Request fast project pricing ↓") && source.includes("fast, engineering-reviewed project pricing") && !/instant (price|quote)/i.test(source), "quote CTAs are benefit-led without promising instant firm pricing"],
