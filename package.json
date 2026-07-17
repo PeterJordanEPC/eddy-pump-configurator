@@ -1,12 +1,29 @@
 {
   "name": "eddy-pump-configurator",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "esbuild src/app.jsx --bundle --format=iife --target=es2020 --jsx-factory=React.createElement --jsx-fragment=React.Fragment --minify --legal-comments=none --outfile=app.js",
-    "check": "npm run build && node scripts/check-build.mjs"
+    "build": "node scripts/build.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check:generated": "node scripts/check-generated.mjs",
+    "check": "npm run test && npm run build && npm run check:generated && node scripts/check-build.mjs"
   },
   "devDependencies": {
-    "esbuild": "0.25.12"
+    "@axe-core/playwright": "4.10.2",
+    "@playwright/test": "1.61.1",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.3.0",
+    "@testing-library/user-event": "14.6.1",
+    "axe-core": "4.10.3",
+    "esbuild": "0.25.12",
+    "jsdom": "26.1.0",
+    "vitest": "3.2.7"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }
