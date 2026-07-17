@@ -10,8 +10,11 @@ const form = readFileSync("src/components/ContactForm.jsx", "utf8");
 const domain = readFileSync("src/domain/configurator.js", "utf8");
 const api = readFileSync("src/api/client.js", "utf8");
 const manifest = readFileSync("src/config/assets.js", "utf8");
+const forbiddenScriptHosts = new Set(["unpkg.com"]);
+const scriptSources = [...index.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)]
+  .map((match) => new URL(match[1], "https://configurator.eddypump.com").hostname);
 const checks = [
-  [!index.includes("unpkg.com") && !index.includes("unsafe-inline") && !index.includes("<style") && !index.includes("<script defer crossorigin"), "React is bundled locally and inline CSP allowances are removed"],
+  [!scriptSources.some((host) => forbiddenScriptHosts.has(host)) && !index.includes("unsafe-inline") && !index.includes("<style") && !index.includes("<script defer crossorigin"), "React is bundled locally and inline CSP allowances are removed"],
   [index.includes('script-src \'self\'') && index.includes('style-src \'self\'') && index.includes("styles.css"), "self-hosted scripts and external CSS are enforced"],
   [index.includes(SITE_CONFIG.apiBase) && index.includes(SITE_CONFIG.fallbackApiBase), "generated CSP contains central API origins"],
   [bundle.includes(SITE_CONFIG.apiBase) && bundle.includes(SITE_CONFIG.fallbackApiBase), "bundle contains central primary and fallback API origins"],
