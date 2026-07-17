@@ -298,15 +298,14 @@ const QUESTIONS = {
   },
 };
 
-/* ---------- Dynamic track (head question only for 50–200 GPM) ---------- */
+/* ---------- Dynamic track ---------- */
 function buildTrack(a) {
-  if (a.application === "dredging") return ["application", "material", "production_dredge", "deployment_dredge", "power"];
-  if (a.application === "process") {
-    const t = ["application", "material", "flow_pump"];
-    if (a.production === "f_50_200") t.push("head");
-    t.push("deployment_pump", "power");
+  if (a.application === "dredging") {
+    const t = ["application", "material", "production_dredge", "deployment_dredge"];
+    if (a.deployment !== "excavator") t.push("power");
     return t;
   }
+  if (a.application === "process") return ["application", "material", "flow_pump", "head", "deployment_pump", "power"];
   return ["application"];
 }
 
@@ -433,6 +432,8 @@ function EddyConfigurator() {
     let next = { ...answers, [q.key]: opt.id };
     if (q.key === "application" && answers.application && answers.application !== opt.id) next = { application: opt.id };
     if (q.key === "production" && opt.id !== "f_50_200") delete next.head;
+    if (q.key === "deployment" && opt.id === "excavator") next.power = "hydraulic";
+    if (q.key === "deployment" && opt.id !== "excavator" && answers.deployment === "excavator") delete next.power;
     advance(next);
   };
 

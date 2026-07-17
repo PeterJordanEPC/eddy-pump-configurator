@@ -15,7 +15,8 @@ const checks = [
   [/if \(done\) \{[\s\S]*?setIdempotencyKey\(newIdempotencyKey\(\)\);[\s\S]*?setDone\(false\);[\s\S]*?return;/.test(source), "changed answers receive a fresh idempotency key"],
   [source.includes('htmlFor="other-material"') && source.includes('id="other-material"'), "other-material input has an associated label"],
   [source.includes('const SELECT_QUESTION_IDS = new Set(["production_dredge", "flow_pump"]);') && source.includes('<select id="flow-rate-selection"'), "dredge and pump flow questions use a compact dropdown"],
-  [source.includes('["application", "material", "production_dredge", "deployment_dredge", "power"]') && source.includes('t.push("deployment_pump", "power")'), "deployment precedes power on dredging and process tracks"],
+  [source.includes('if (a.deployment !== "excavator") t.push("power")') && source.includes('next.power = "hydraulic"'), "excavator selection fixes hydraulic power and skips an invalid power choice"],
+  [source.includes('return ["application", "material", "flow_pump", "head", "deployment_pump", "power"]'), "every process-pump path captures head before configuration and power"],
   [/track\.slice\(targetIdx\)[\s\S]*?delete next\[QUESTIONS\[qid\]\.key\][\s\S]*?setAnswers\(next\)/.test(source), "Back removes the target and downstream selections"],
   [[
     "75–150 cu yd/hr (250–1,200 GPM)",
