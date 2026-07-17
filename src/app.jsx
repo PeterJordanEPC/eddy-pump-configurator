@@ -410,7 +410,7 @@ function EddyConfigurator() {
     }
     headingRef.current?.focus({ preventScroll: true });
     stepTopRef.current?.scrollIntoView({ block: "start" });
-  }, [stepIdx, done]);
+  }, [stepIdx, done, submitted]);
 
   const goToQuote = () => {
     if (!quoteRef.current) return;
@@ -654,6 +654,16 @@ function EddyConfigurator() {
         .cta:not(:disabled):hover, .cta:not(:disabled):focus-visible { filter: brightness(1.05); outline:3px solid rgba(242,106,33,.24); outline-offset:2px; }
         .thanks { font-family:'IBM Plex Mono'; color: var(--orange); font-size: 16px; letter-spacing:0.03em; line-height:1.7; }
         .reference { color:#526477; font-size:13px; }
+        .successScreen { width:100%; max-width:780px; margin:28px auto 0; padding:52px 54px; text-align:center; background:var(--panel); border:1px solid var(--line); border-top:5px solid var(--orange); box-shadow:0 16px 42px rgba(28,43,58,.10); scroll-margin-top:18px; }
+        .successIcon { width:76px; height:76px; margin:0 auto 22px; display:grid; place-items:center; border-radius:50%; background:var(--orange); color:#FFFFFF; font-family:'Barlow'; font-size:46px; font-weight:700; line-height:1; }
+        .successScreen .eyebrow { margin-bottom:14px; }
+        .successTitle { margin:0 auto 18px; max-width:18ch; color:var(--blue); font-family:'Barlow Condensed'; font-size:clamp(38px,5vw,58px); font-weight:700; line-height:1.02; letter-spacing:.02em; text-transform:uppercase; }
+        .successTitle:focus { outline:none; }
+        .successMessage { max-width:610px; margin:0 auto; color:#33465A; font-size:20px; line-height:1.55; }
+        .successFollowup { margin:18px 0 0; color:#526477; font-size:16px; line-height:1.5; }
+        .successReference { display:inline-block; margin-top:22px; padding:10px 14px; border:1px solid var(--line); background:#FFFFFF; color:#526477; font-family:'IBM Plex Mono'; font-size:13px; letter-spacing:.04em; overflow-wrap:anywhere; }
+        .successAction { margin-top:28px; background:var(--blue); border:0; color:#FFFFFF; min-height:52px; padding:14px 24px; cursor:pointer; font-family:'Barlow Condensed'; font-size:18px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+        .successAction:hover, .successAction:focus-visible { filter:brightness(1.08); outline:3px solid rgba(36,74,158,.24); outline-offset:3px; }
         .projectDetails { grid-column:1 / -1; margin-top:6px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
         .projectDetails summary { cursor:pointer; padding:16px 2px; color:var(--blue); font-family:'Barlow'; font-weight:600; font-size:15px; line-height:1.4; list-style:none; }
         .projectDetails summary::-webkit-details-marker { display:none; }
@@ -688,6 +698,10 @@ function EddyConfigurator() {
           .otherRow input { min-width:0; width:100%; }
           .resultCard .cardArt { height:150px; }
           .resultBody, .leadbox { padding:20px 18px; }
+          .successScreen { margin-top:8px; padding:38px 20px; }
+          .successIcon { width:66px; height:66px; font-size:40px; }
+          .successMessage { font-size:18px; }
+          .successAction { width:100%; }
           h2.fam { font-size:32px; }
           .cta, .quoteJump { width:100%; }
           .projectGrid { grid-template-columns:1fr; }
@@ -773,7 +787,7 @@ function EddyConfigurator() {
             </>
           )}
 
-          {done && rec && (
+          {done && rec && !submitted && (
             <div className="result" ref={stepTopRef}>
               <div className="stepNav">
                 <button className="backbtn" onClick={back}>← Change my answers</button>
@@ -852,16 +866,31 @@ function EddyConfigurator() {
                 ) : (
                   <div className="thanks">
                     CONFIGURATION RECEIVED ✓<br />
-                    An EDDY Pump specialist will review the engineering details before confirming equipment or pricing.
+                    An Eddy Pump Sales Engineer will review the engineering details before confirming equipment or pricing.
                     {submissionId && <><br /><span className="reference">REFERENCE: {submissionId}</span></>}
                   </div>
                 )}
               </div>
             </div>
           )}
+
+          {submitted && (
+            <section className="successScreen" ref={stepTopRef} role="status" aria-live="polite">
+              <div className="successIcon" aria-hidden="true">✓</div>
+              <div className="eyebrow">PRICING REQUEST RECEIVED</div>
+              <h1 className="successTitle" ref={headingRef} tabIndex="-1">Your project is now in review</h1>
+              <p className="successMessage">
+                An Eddy Pump Sales Engineer will review your configuration and engineering details,
+                then contact you to confirm the right equipment and project pricing.
+              </p>
+              {lead.email && <p className="successFollowup">We’ll follow up at <strong>{lead.email}</strong>.</p>}
+              {submissionId && <div className="successReference">REFERENCE: {submissionId}</div>}
+              <div><button className="successAction" type="button" onClick={restart}>Start a new configuration</button></div>
+            </section>
+          )}
         </div>
 
-        <aside className="sheet">
+        {!submitted && <aside className="sheet">
           <div className="head">CONFIGURATION SUMMARY</div>
           {answeredRows.length === 0 && (
             <div className="empty">YOUR SELECTIONS WILL APPEAR HERE AS YOU BUILD THE APPLICATION.</div>
@@ -875,7 +904,7 @@ function EddyConfigurator() {
           {done && rec && (
             <div className="row"><span className="k">FAMILY</span><span className="v">{rec.family}</span></div>
           )}
-        </aside>
+        </aside>}
       </div>
     </div>
   );

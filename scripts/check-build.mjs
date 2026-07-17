@@ -45,6 +45,7 @@ const checks = [
   [source.includes("Project notes") && source.indexOf("Project notes") < source.indexOf('<details className="projectDetails">'), "Project notes is always visible before optional engineering details"],
   [!source.includes("consentRow") && !source.includes("setConsent") && !source.includes("consent: true") && source.includes("By submitting, you ask EDDY Pump to contact you about this project"), "submission uses a clear contact notice without a confirmation checkbox"],
   [source.includes("Name and a valid work email are required") && source.includes("No payment required"), "contact form explains requirements and reassurance"],
+  [source.includes('className="successScreen"') && source.includes("PRICING REQUEST RECEIVED") && source.includes("Eddy Pump Sales Engineer") && !source.includes("EDDY Pump specialist") && source.includes("!submitted && <aside"), "successful submission replaces recommendation and summary with a prominent sales-engineer confirmation"],
   [source.includes("font-size:16px; min-height:48px"), "form controls are sized for older users"],
   [source.includes("--orange: #B94708") && source.includes("border:1px solid #7A8AA0") && source.includes("grid-template-columns:112px minmax(0,1fr)"), "mobile cards are compact and text/control contrast meets accessibility targets"],
   [source.includes("reportValidity()") && source.includes("lastPayloadSignatureRef") && source.includes(".otherRow { flex-direction:column"), "numeric constraints, changed-payload idempotency, and mobile Other layout are protected"],
