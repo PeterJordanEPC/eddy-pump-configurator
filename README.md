@@ -40,8 +40,8 @@ Do not edit `app.js` directly. Run `npm run build` after changing `src/app.jsx`.
 
 ## Configurator flow
 
-- Dredging: material → cubic yards/hour → power → deployment
-- Process pump: material → GPM range → discharge head when applicable → power → configuration
+- Dredging: material → cubic yards/hour → deployment → power
+- Process pump: material → GPM range → discharge head when applicable → configuration → power
 - GPM ranges map to 1, 2, 3, 4, 6, 8, 10, 12, or 16-inch pump classes; the tool never recommends a 5-inch class
 - Head is captured for engineering review and never overrides the flow-sized pump, selected configuration, or power
 - Project notes are always visible in the main contact section; detailed engineering fields use progressive disclosure

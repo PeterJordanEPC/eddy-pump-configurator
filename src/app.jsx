@@ -300,11 +300,11 @@ const QUESTIONS = {
 
 /* ---------- Dynamic track (head question only for 50–200 GPM) ---------- */
 function buildTrack(a) {
-  if (a.application === "dredging") return ["application", "material", "production_dredge", "power", "deployment_dredge"];
+  if (a.application === "dredging") return ["application", "material", "production_dredge", "deployment_dredge", "power"];
   if (a.application === "process") {
     const t = ["application", "material", "flow_pump"];
     if (a.production === "f_50_200") t.push("head");
-    t.push("power", "deployment_pump");
+    t.push("deployment_pump", "power");
     return t;
   }
   return ["application"];
