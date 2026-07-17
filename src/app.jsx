@@ -1,4 +1,6 @@
 
+import { clearAnswersFromTrack } from "./flow-state.mjs";
+
 const { useState, useMemo, useEffect, useRef } = React;
 const API_BASE = "https://api-production-1940.up.railway.app";
 const newIdempotencyKey = () => `web:${window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
@@ -446,9 +448,8 @@ function EddyConfigurator() {
     const targetIdx = done ? track.length - 1 : stepIdx - 1;
     if (targetIdx < 0) return;
 
-    const next = { ...answers };
-    track.slice(targetIdx).forEach((qid) => {
-      delete next[QUESTIONS[qid].key];
+    const next = clearAnswersFromTrack({
+      answers, track, targetIdx, questions: QUESTIONS,
     });
     if (!next.material) delete next.materialOther;
     setAnswers(next);

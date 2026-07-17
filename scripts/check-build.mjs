@@ -1,4 +1,5 @@
 import { readFileSync, statSync } from "node:fs";
+import { clearAnswersFromTrack } from "../src/flow-state.mjs";
 
 const index = readFileSync("index.html", "utf8");
 const source = readFileSync("src/app.jsx", "utf8");
@@ -17,7 +18,7 @@ const checks = [
   [source.includes('const SELECT_QUESTION_IDS = new Set(["production_dredge", "flow_pump"]);') && source.includes('<select id="flow-rate-selection"'), "dredge and pump flow questions use a compact dropdown"],
   [source.includes('if (a.deployment !== "excavator") t.push("power")') && source.includes('next.power = "hydraulic"'), "excavator selection fixes hydraulic power and skips an invalid power choice"],
   [source.includes('return ["application", "material", "flow_pump", "head", "deployment_pump", "power"]'), "every process-pump path captures head before configuration and power"],
-  [/track\.slice\(targetIdx\)[\s\S]*?delete next\[QUESTIONS\[qid\]\.key\][\s\S]*?setAnswers\(next\)/.test(source), "Back removes the target and downstream selections"],
+  [source.includes("clearAnswersFromTrack({") && source.includes("answers, track, targetIdx, questions: QUESTIONS"), "Back delegates target/downstream cleanup to the behavior-tested flow helper"],
   [[
     "75–150 cu yd/hr (250–1,200 GPM)",
     "150–200 cu yd/hr (450–2,500 GPM)",
@@ -57,6 +58,32 @@ const checks = [
   [bundle.length > 1000 && bundle.length < 100000, "production bundle has expected size"],
   [statSync("images/eddy-pump-corporation-logo.webp").size < 100000, "optimized logo is present"],
 ];
+
+const dredgeTrack = ["application", "material", "production_dredge", "deployment_dredge"];
+const flowQuestions = {
+  application: { key: "application" },
+  material: { key: "material" },
+  production_dredge: { key: "production" },
+  deployment_dredge: { key: "deployment" },
+};
+const revised = clearAnswersFromTrack({
+  answers: {
+    application: "dredging", material: "sand", production: "p_200",
+    deployment: "excavator", power: "hydraulic",
+  },
+  track: dredgeTrack,
+  targetIdx: 3,
+  questions: flowQuestions,
+});
+checks.push([
+  revised.deployment === undefined && revised.power === undefined,
+  "Back from an excavator recommendation clears deployment and implied hydraulic power",
+]);
+const replacement = { ...revised, deployment: "cable", power: "electric" };
+checks.push([
+  replacement.deployment === "cable" && replacement.power === "electric",
+  "revising excavator deployment produces a clean replacement deployment and power payload",
+]);
 
 const failed = checks.filter(([ok]) => !ok);
 for (const [ok, label] of checks) console.log(`${ok ? "PASS" : "FAIL"} ${label}`);
