@@ -382,7 +382,6 @@ function EddyConfigurator() {
   const [lead, setLead] = useState({ name: "", email: "", company: "", phone: "" });
   const [touched, setTouched] = useState({ name: false, email: false });
   const [project, setProject] = useState({ discharge_distance_ft: "", elevation_gain_ft: "", water_depth_ft: "", solids_size_in: "", specific_gravity: "", percent_solids: "", excavator_model: "", pipe_diameter_in: "", notes: "" });
-  const [consent, setConsent] = useState(false);
   const [website, setWebsite] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey);
   const [submitting, setSubmitting] = useState(false);
@@ -475,7 +474,6 @@ function EddyConfigurator() {
     setLead({ name: "", email: "", company: "", phone: "" });
     setTouched({ name: false, email: false });
     setProject({ discharge_distance_ft: "", elevation_gain_ft: "", water_depth_ft: "", solids_size_in: "", specific_gravity: "", percent_solids: "", excavator_model: "", pipe_diameter_in: "", notes: "" });
-    setConsent(false);
     setWebsite("");
     setSubmitError("");
     setSubmissionId("");
@@ -486,7 +484,7 @@ function EddyConfigurator() {
   const numberOrNull = (value) => value === "" ? null : Number(value);
 
   const handleSubmit = async () => {
-    if (!lead.name.trim() || !validEmail(lead.email) || !consent || submitting) return;
+    if (!lead.name.trim() || !validEmail(lead.email) || submitting) return;
     if (window.location.protocol !== "https:") {
       setSubmitError("Secure HTTPS is required before project information can be submitted. Please contact EDDY Pump directly while the secure connection is being provisioned.");
       return;
@@ -514,7 +512,6 @@ function EddyConfigurator() {
         pipe_diameter_in: numberOrNull(project.pipe_diameter_in),
         notes: project.notes || null,
       },
-      consent: true,
       website,
     };
     const payloadSignature = JSON.stringify(submissionData);
@@ -643,9 +640,9 @@ function EddyConfigurator() {
         .fields input, .fields textarea { background:#FFFFFF; border:1px solid #7A8AA0; color: var(--paper); padding: 11px 12px; font-family:'Barlow'; font-size:16px; min-height:48px; width:100%; }
         .fields textarea { grid-column: 1 / -1; min-height:96px; resize:vertical; }
         .fields input:focus-visible, .fields textarea:focus-visible { outline:3px solid rgba(242,106,33,.22); outline-offset:1px; border-color: var(--orange); }
-        .consentRow { display:flex; align-items:flex-start; gap:12px; margin-top:16px; color:#33465A; font-size:15px; line-height:1.5; cursor:pointer; }
-        .consentRow input { margin-top:2px; accent-color:var(--orange); min-width:20px; min-height:20px; }
-        .formHelp { margin:14px 0 0 !important; color:#526477 !important; font-size:14px !important; }
+        .mainNotes { grid-column:1 / -1; }
+        .submissionNotice { margin:16px 0 0 !important; color:#33465A !important; font-size:14px !important; line-height:1.5; }
+        .formHelp { margin:8px 0 0 !important; color:#526477 !important; font-size:14px !important; }
         .formReassurance { margin-top:12px; color:var(--blue); font-size:14px; font-weight:600; line-height:1.5; }
         .secureNote { margin-top:10px; font-family:'IBM Plex Mono'; font-size:12px; color:#5F7084; line-height:1.5; }
         .submitError { margin-top:12px; padding:12px 14px; border-left:3px solid #B42318; background:#FFF1F0; color:#8A1C13; font-size:15px; line-height:1.45; }
@@ -824,6 +821,7 @@ function EddyConfigurator() {
                         <label htmlFor="contact-phone">Phone <span>(optional)</span></label>
                         <input id="contact-phone" autoComplete="tel" maxLength="40" type="tel" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} />
                       </div>
+                      <div className="fieldGroup mainNotes"><label htmlFor="project-notes">Project notes <span>(optional)</span></label><textarea id="project-notes" maxLength="2000" placeholder="Material, site conditions, schedule, voltage, viscosity, abrasiveness, or anything else we should know" value={project.notes} onChange={(e) => setProject({ ...project, notes: e.target.value })} /></div>
 
                       <details className="projectDetails">
                         <summary>Add optional project details for a faster, more accurate review</summary>
@@ -836,20 +834,16 @@ function EddyConfigurator() {
                           <div className="fieldGroup"><label htmlFor="project-percent">Percent solids</label><input id="project-percent" inputMode="decimal" type="number" min="0" max="100" step="0.1" value={project.percent_solids} onChange={(e) => setProject({ ...project, percent_solids: e.target.value })} /></div>
                           <div className="fieldGroup"><label htmlFor="project-pipe">Pipe diameter (in)</label><input id="project-pipe" inputMode="decimal" type="number" min="0.25" max="100" value={project.pipe_diameter_in} onChange={(e) => setProject({ ...project, pipe_diameter_in: e.target.value })} /></div>
                           {answers.deployment === "excavator" && <div className="fieldGroup"><label htmlFor="project-excavator">Excavator model</label><input id="project-excavator" maxLength="120" value={project.excavator_model} onChange={(e) => setProject({ ...project, excavator_model: e.target.value })} /></div>}
-                          <div className="fieldGroup notes"><label htmlFor="project-notes">Project notes</label><textarea id="project-notes" maxLength="2000" placeholder="Material, site conditions, schedule, voltage, viscosity, abrasiveness, or anything else we should know" value={project.notes} onChange={(e) => setProject({ ...project, notes: e.target.value })} /></div>
                         </div>
                       </details>
                       <label className="honeypot" aria-hidden="true">Website<input tabIndex="-1" autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
                     </div>
-                    <label className="consentRow">
-                      <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-                      <span>I agree that EDDY Pump may use this information to evaluate my application and contact me about this project.</span>
-                    </label>
-                    <p className="formHelp">Name, work email, and consent are required to request your quote.</p>
+                    <p className="submissionNotice">By submitting, you ask EDDY Pump to contact you about this project. This does not subscribe you to marketing emails.</p>
+                    <p className="formHelp">Name and a valid work email are required to request pricing.</p>
                     <div className="formReassurance">No payment required · No account needed · Secure submission</div>
                     <div className="secureNote">ENGINEERING REVIEW REQUIRED BEFORE FIRM EQUIPMENT SELECTION OR PRICING</div>
                     {submitError && <div className="submitError" role="alert">{submitError}</div>}
-                    <button className="cta" type="submit" disabled={!lead.name.trim() || !validEmail(lead.email) || !consent || submitting}>
+                    <button className="cta" type="submit" disabled={!lead.name.trim() || !validEmail(lead.email) || submitting}>
                       {submitting ? "Sending securely…" : "Submit my pricing request"}
                     </button>
                   </form>
