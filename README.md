@@ -13,7 +13,7 @@ HTTP is redirected to HTTPS by GitHub Pages.
 ```text
 configurator.eddypump.com (GitHub Pages)
         |
-        | HTTPS, validated JSON, consent + idempotency
+        | HTTPS, validated JSON, explicit submission + idempotency
         v
 Railway private API + PostgreSQL
 ```
@@ -44,7 +44,7 @@ Do not edit `app.js` directly. Run `npm run build` after changing `src/app.jsx`.
 - Process pump: material → GPM range → discharge head when applicable → power → configuration
 - GPM ranges map to 1, 2, 3, 4, 6, 8, 10, 12, or 16-inch pump classes; the tool never recommends a 5-inch class
 - Head is captured for engineering review and never overrides the flow-sized pump, selected configuration, or power
-- Optional engineering details use progressive disclosure to keep the initial contact form short
+- Project notes are always visible in the main contact section; detailed engineering fields use progressive disclosure
 
 ## Product photography
 
@@ -68,7 +68,7 @@ Use approved landscape assets around 1200 pixels wide with consistent lighting a
 - Restrictive Content Security Policy
 - Exact-version React scripts with Subresource Integrity
 - Server-side schema validation and authoritative recommendation
-- Consent requirement
+- Explicit submit action with a clear project-contact notice and no automatic marketing subscription
 - Honeypot and backend rate limiting
 - Idempotency keys to prevent duplicate intake
 - Encrypted PII at rest in PostgreSQL
