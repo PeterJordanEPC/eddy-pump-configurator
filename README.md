@@ -68,7 +68,7 @@ Use approved landscape assets around 1200 pixels wide with consistent lighting a
 - Restrictive Content Security Policy
 - Exact-version React scripts with Subresource Integrity
 - Server-side schema validation and authoritative recommendation
-- Explicit submit action with a clear project-contact notice and no automatic marketing subscription
+- Explicit submit action with native required-field validation and no automatic marketing subscription
 - Honeypot and backend rate limiting
 - Idempotency keys to prevent duplicate intake
 - Encrypted PII at rest in PostgreSQL

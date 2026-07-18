@@ -645,10 +645,6 @@ function EddyConfigurator() {
         .fields textarea { grid-column: 1 / -1; min-height:96px; resize:vertical; }
         .fields input:focus-visible, .fields textarea:focus-visible { outline:3px solid rgba(242,106,33,.22); outline-offset:1px; border-color: var(--orange); }
         .mainNotes { grid-column:1 / -1; }
-        .submissionNotice { margin:16px 0 0 !important; color:#33465A !important; font-size:14px !important; line-height:1.5; }
-        .formHelp { margin:8px 0 0 !important; color:#526477 !important; font-size:14px !important; }
-        .formReassurance { margin-top:12px; color:var(--blue); font-size:14px; font-weight:600; line-height:1.5; }
-        .secureNote { margin-top:10px; font-family:'IBM Plex Mono'; font-size:12px; color:#5F7084; line-height:1.5; }
         .submitError { margin-top:12px; padding:12px 14px; border-left:3px solid #B42318; background:#FFF1F0; color:#8A1C13; font-size:15px; line-height:1.45; }
         .honeypot { position:absolute !important; left:-10000px !important; width:1px !important; height:1px !important; overflow:hidden !important; }
         .cta { margin-top: 16px; background: var(--orange); border:none; color:#FFFFFF; font-family:'Barlow Condensed'; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; font-size:18px; min-height:52px; padding:14px 28px; cursor:pointer; }
@@ -856,10 +852,6 @@ function EddyConfigurator() {
                       </details>
                       <label className="honeypot" aria-hidden="true">Website<input tabIndex="-1" autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
                     </div>
-                    <p className="submissionNotice">By submitting, you ask EDDY Pump to contact you about this project. This does not subscribe you to marketing emails.</p>
-                    <p className="formHelp">Name and a valid work email are required to request pricing.</p>
-                    <div className="formReassurance">No payment required · No account needed · Secure submission</div>
-                    <div className="secureNote">ENGINEERING REVIEW REQUIRED BEFORE FIRM EQUIPMENT SELECTION OR PRICING</div>
                     {submitError && <div className="submitError" role="alert">{submitError}</div>}
                     <button className="cta" type="submit" disabled={!lead.name.trim() || !validEmail(lead.email) || submitting}>
                       {submitting ? "Sending securely…" : "Submit my pricing request"}
