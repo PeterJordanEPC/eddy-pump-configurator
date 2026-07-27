@@ -1,5 +1,5 @@
 
-import { clearAnswersFromTrack } from "./flow-state.mjs";
+import { clearAnswersFromTrack, filterQuestionOptions } from "./flow-state.mjs";
 
 const { useState, useMemo, useEffect, useRef } = React;
 const API_BASE = "https://api-production-1940.up.railway.app";
@@ -14,7 +14,7 @@ const apiErrorMessage = (detail) => {
 /* ============================================================
    EDDY PUMP — GUIDED PUMP & DREDGE CONFIGURATOR (PROTOTYPE)
    Two tracks: Dredging | Process Pump
-   GPM ranges map directly to pump size class (no 5-in ever).
+   GPM ranges map directly to pump size (no 5-in ever).
    Head is retained for engineering review and never overrides deployment or power.
    Secure lead intake posts to the Railway API; customer-facing sends remain approval-gated.
    ============================================================ */
@@ -303,7 +303,7 @@ const QUESTIONS = {
 /* ---------- Dynamic track ---------- */
 function buildTrack(a) {
   if (a.application === "dredging") {
-    const t = ["application", "material", "production_dredge", "deployment_dredge"];
+    const t = ["application", "material", "deployment_dredge", "production_dredge"];
     if (a.deployment !== "excavator") t.push("power");
     return t;
   }
@@ -314,7 +314,7 @@ function buildTrack(a) {
 const SELECT_QUESTION_IDS = new Set(["production_dredge", "flow_pump"]);
 
 /* ---------- Recommendation engine ---------- */
-/* GPM -> pump size class. NOTE: 5-in pump intentionally never recommended. */
+/* GPM -> pump size. NOTE: 5-in pump intentionally never recommended. */
 const PUMP_SIZE = {
   f_5_50: "1-in", f_50_200: "2-in", f_200_400: "3-in", f_400_900: "4-in",
   f_900_1600: "6-in", f_1600_2500: "8-in", f_2500_3500: "10-in",
@@ -327,7 +327,7 @@ function recommend(a) {
   const drive = power === "diesel" ? "Diesel drive package" : power === "hydraulic" ? "Hydraulic drive package" : "Electric motor drive";
 
   if (application === "dredging") {
-    /* Production (cu yd/hr) -> pump size class, per EDDY Pump platform specs */
+    /* Production (cu yd/hr) -> pump size, per EDDY Pump platform specs */
     const ds = {
       p_150: { size: "4-in", exf: "EXF-4000", gpm: "250–1,200 GPM", prod: "75–150 cu yd/hr" },
       p_200: { size: "6-in", exf: "EXF-6000", gpm: "450–2,500 GPM", prod: "150–200 cu yd/hr" },
@@ -335,14 +335,15 @@ function recommend(a) {
       p_350: { size: "10-in", exf: "EXF-10000", gpm: "1,600–5,000 GPM", prod: "300–350 cu yd/hr" },
       p_600: { size: "12-in", exf: "EXF-12000", gpm: "2,600–7,300 GPM", prod: "500–600 cu yd/hr" },
     }[production] || { size: "8-in", exf: "EXF-8000", gpm: "1,400–3,600 GPM", prod: "250–300 cu yd/hr" };
-    const sizeSpecs = [ds.size + " discharge class", ds.gpm + " flow range"];
+    const sizeSpecs = [ds.size + " discharge", ds.gpm + " flow range"];
+    const sledPower = power === "hydraulic" ? "Hydraulic" : power === "electric" ? "Electric" : "Diesel-Powered";
     const fam = {
-      excavator: { family: ds.exf + " Excavator Dredge Pump Attachment (" + ds.size + ")", art: "excavator", blurb: "Mounts to the stick of your excavator and turns it into a production dredge. Hydraulic drive runs straight off the machine's auxiliary circuit.", specs: [...sizeSpecs, "Runs off excavator hydraulics", "Cutterhead options for hard-packed material"] },
-      cable: { family: "Cable-Deployed Dredge Pump — " + ds.size + " Class", art: "cable", blurb: "Lowered by crane or cable from shore, barge, or gantry. Available in electric or hydraulic drive with water-jetting rings for fast-settling material.", specs: [...sizeSpecs, drive, "Optional water jetting ring"] },
-      remote: { family: "Subdredge™ Remote-Operated Dredge — " + ds.size + " Class", art: "remote", blurb: "A crewless, self-propelled dredge driven from shore — built around the EDDY Pump non-clog design for high-solids production without divers or support boats.", specs: [...sizeSpecs, "Remote operation from shore", "EDDY Pump non-clog rotor"] },
-      sled: { family: "Dredge Sled — " + ds.size + " Class", art: "sled", blurb: "The EDDY Pump mounted on a skid frame, winched across the bottom from shore — steady production with a minimal equipment footprint.", specs: [...sizeSpecs, "Winch-guided from shore", "Low equipment footprint"] },
-      diver: { family: "Diver-Operated Dredge — " + ds.size + " Class", art: "diver", blurb: "A diver-guided EDDY Pump for precise removal in confined or sensitive areas where larger equipment can't work.", specs: [...sizeSpecs, "Precise, diver-directed dredging", "Confined and sensitive areas"] },
-      auger: { family: "Mini Auger ModDredge — " + ds.size + " Class", art: "auger", blurb: "A compact auger dredge for lagoons, small ponds, and tight footprints — the auger feeds settled material straight into the EDDY Pump.", specs: [...sizeSpecs, "Compact footprint", "Auger-fed for settled solids"] },
+      excavator: { family: ds.exf + " Excavator Dredge Pump Attachment", art: "excavator", blurb: "Mounts to the stick of your excavator and turns it into a production dredge. Hydraulic drive runs straight off the machine's auxiliary circuit.", specs: [...sizeSpecs, "Runs off excavator hydraulics", "Cutterhead options for hard-packed material"] },
+      cable: { family: "Cable-Deployed Dredge Pump — " + ds.size, art: "cable", blurb: "Lowered by crane or cable from shore, barge, or gantry. Available in electric or hydraulic drive with water-jetting rings for fast-settling material.", specs: [...sizeSpecs, drive, "Optional water jetting ring"] },
+      remote: { family: "Subdredge™ Remote-Operated Dredge — " + ds.size, art: "remote", blurb: "A crewless, self-propelled dredge driven from shore — built around the EDDY Pump non-clog design for high-solids production without divers or support boats.", specs: [...sizeSpecs, "Remote operation from shore", "EDDY Pump non-clog rotor"] },
+      sled: { family: sledPower + " Dredge Sled — " + ds.size, art: "sled", blurb: "The EDDY Pump mounted on a skid frame, winched across the bottom from shore — steady production with a minimal equipment footprint.", specs: [...sizeSpecs, "Winch-guided from shore", "Low equipment footprint"] },
+      diver: { family: "Diver-Operated Dredge — " + ds.size, art: "diver", blurb: "A diver-guided EDDY Pump for precise removal in confined or sensitive areas where larger equipment can't work.", specs: [...sizeSpecs, "Precise, diver-directed dredging", "Confined and sensitive areas"] },
+      auger: { family: "Mini Auger ModDredge — " + ds.size, art: "auger", blurb: "A compact auger dredge for lagoons, small ponds, and tight footprints — the auger feeds settled material straight into the EDDY Pump.", specs: [...sizeSpecs, "Compact footprint", "Auger-fed for settled solids"] },
     }[deployment];
     return fam || { family: "EDDY Dredge System", art: "dredging", blurb: "Our engineering team will match the right dredge configuration to your project.", specs: sizeSpecs };
   }
@@ -355,7 +356,7 @@ function recommend(a) {
     family: `EDDY Pump ${size} ${config.label} — ${PROCESS_POWER[a.power] || "Specified drive"}`,
     art: config.art,
     blurb: "The core EDDY Pump design: a geometrically induced eddy current instead of a close-tolerance impeller — high solids tolerance, low wear, no clogging on the material you described.",
-    specs: [`${size} discharge class`, config.label + " configuration", drive, ...headSpecs, "Passes large solids without clogging"],
+    specs: [`${size} discharge`, config.label + " configuration", drive, ...headSpecs, "Passes large solids without clogging"],
   };
 }
 
@@ -398,6 +399,7 @@ function EddyConfigurator() {
   const track = buildTrack(answers);
   const currentQid = track[stepIdx];
   const question = QUESTIONS[currentQid];
+  const questionOptions = filterQuestionOptions(currentQid, question?.options || [], answers);
   const totalSteps = answers.application ? track.length : 5;
 
   const rec = useMemo(() => (done ? recommend(answers) : null), [done, answers]);
@@ -745,11 +747,11 @@ function EddyConfigurator() {
                     {currentQid === "production_dredge" ? "SELECT PRODUCTION TARGET" : "SELECT FLOW-RATE RANGE"}
                   </label>
                   <select id="flow-rate-selection" value="" onChange={(event) => {
-                    const option = question.options.find((item) => item.id === event.target.value);
+                    const option = questionOptions.find((item) => item.id === event.target.value);
                     if (option) pick(option);
                   }}>
                     <option value="" disabled>Choose the closest range…</option>
-                    {question.options.map((opt) => (
+                    {questionOptions.map((opt) => (
                       <option key={opt.id} value={opt.id}>{opt.label} — {opt.desc}</option>
                     ))}
                   </select>
@@ -761,7 +763,7 @@ function EddyConfigurator() {
                 </div>
               ) : (
                 <div className="grid">
-                  {question.options.map((opt) => (
+                  {questionOptions.map((opt) => (
                     <button key={opt.id} className="card" onClick={() => pick(opt)}>
                       <CardImage kind={opt.art} />
                       <h3>{opt.label}</h3>
