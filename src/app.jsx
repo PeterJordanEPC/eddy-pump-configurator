@@ -4,6 +4,7 @@ import { clearAnswersFromTrack, filterQuestionOptions } from "./flow-state.mjs";
 const { useState, useMemo, useEffect, useRef } = React;
 const API_BASE = "https://api-production-1940.up.railway.app";
 const newIdempotencyKey = () => `web:${window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+const validName = (value) => value.trim().length >= 2;
 const validEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 const apiErrorMessage = (detail) => {
   if (typeof detail === "string") return detail;
@@ -14,9 +15,9 @@ const apiErrorMessage = (detail) => {
 /* ============================================================
    EDDY PUMP — GUIDED PUMP & DREDGE CONFIGURATOR (PROTOTYPE)
    Two tracks: Dredging | Process Pump
-   GPM ranges map directly to pump size (no 5-in ever).
-   Head is retained for engineering review and never overrides deployment or power.
-   Secure lead intake posts to the Railway API; customer-facing sends remain approval-gated.
+   The backend preview is authoritative for recommendations and compatibility.
+   Flow, head, and material are captured for engineering sizing rather than
+   being used to fabricate an exact process-pump model in the browser.
    ============================================================ */
 
 /* ---------- Blueprint placeholder art ---------- */
@@ -208,9 +209,9 @@ const QUESTIONS = {
     sub: "Rough solids production target. We'll size the family, engineering confirms the number.",
     options: [
       { id: "p_150", label: "75–150 cu yd/hr (250–1,200 GPM)", desc: "Small ponds, maintenance dredging.", art: "flow" },
-      { id: "p_200", label: "150–200 cu yd/hr (450–2,500 GPM)", desc: "Mid-size projects, canals, marinas.", art: "flow" },
+      { id: "p_200", label: "Over 150–200 cu yd/hr (450–2,500 GPM)", desc: "Mid-size projects, canals, marinas.", art: "flow" },
       { id: "p_300", label: "250–300 cu yd/hr (1,400–3,600 GPM)", desc: "Sustained production dredging.", art: "flow" },
-      { id: "p_350", label: "300–350 cu yd/hr (1,600–5,000 GPM)", desc: "High-production projects.", art: "flow" },
+      { id: "p_350", label: "Over 300–350 cu yd/hr (1,600–5,000 GPM)", desc: "High-production projects.", art: "flow" },
       { id: "p_600", label: "500–600 cu yd/hr (2,600–7,300 GPM)", desc: "Maximum production duty.", art: "flow" },
     ],
   },
@@ -218,17 +219,17 @@ const QUESTIONS = {
     key: "production",
     eyebrow: "STEP — FLOW",
     title: "What flow rate do you need?",
-    sub: "Ballpark is fine — this maps directly to a pump size.",
+    sub: "Ballpark is fine — engineering will select the exact size from your full duty point.",
     options: [
-      { id: "f_5_50", label: "5–50 GPM (1-in Pump)", desc: "Light transfer duty.", art: "flow" },
-      { id: "f_50_200", label: "50–200 GPM (2-in Pump)", desc: "Small process lines.", art: "flow" },
-      { id: "f_200_400", label: "200–400 GPM (3-in Pump)", desc: "Light plant duty.", art: "flow" },
-      { id: "f_400_900", label: "400–900 GPM (4-in Pump)", desc: "Typical plant transfer.", art: "flow" },
-      { id: "f_900_1600", label: "900–1,600 GPM (6-in Pump)", desc: "Heavy plant duty.", art: "flow" },
-      { id: "f_1600_2500", label: "1,600–2,500 GPM (8-in Pump)", desc: "High-volume transfer.", art: "flow" },
-      { id: "f_2500_3500", label: "2,500–3,500 GPM (10-in Pump)", desc: "High-volume transfer.", art: "flow" },
-      { id: "f_3500_6000", label: "3,500–6,000 GPM (12-in Pump)", desc: "Major process lines.", art: "flow" },
-      { id: "f_6000_12000", label: "6,000–12,000 GPM (16-in Pump)", desc: "Maximum-volume duty.", art: "flow" },
+      { id: "f_5_50", label: "Up to 50 GPM", desc: "Light transfer duty.", art: "flow" },
+      { id: "f_50_200", label: "Over 50–200 GPM", desc: "Small process lines.", art: "flow" },
+      { id: "f_200_400", label: "Over 200–400 GPM", desc: "Light plant duty.", art: "flow" },
+      { id: "f_400_900", label: "Over 400–900 GPM", desc: "Typical plant transfer.", art: "flow" },
+      { id: "f_900_1600", label: "Over 900–1,600 GPM", desc: "Heavy plant duty.", art: "flow" },
+      { id: "f_1600_2500", label: "Over 1,600–2,500 GPM", desc: "High-volume transfer.", art: "flow" },
+      { id: "f_2500_3500", label: "Over 2,500–3,500 GPM", desc: "High-volume transfer.", art: "flow" },
+      { id: "f_3500_7300", label: "Over 3,500–7,300 GPM", desc: "Major process lines.", art: "flow" },
+      { id: "f_over_7300", label: "Over 7,300 GPM — custom engineering review", desc: "Custom high-flow duty.", art: "flow" },
     ],
   },
   head: {
@@ -289,50 +290,47 @@ function buildTrack(a) {
 
 const SELECT_QUESTION_IDS = new Set(["production_dredge", "flow_pump"]);
 
-/* ---------- Recommendation engine ---------- */
-/* GPM -> pump size. NOTE: 5-in pump intentionally never recommended. */
-const PUMP_SIZE = {
-  f_5_50: "1-in", f_50_200: "2-in", f_200_400: "3-in", f_400_900: "4-in",
-  f_900_1600: "6-in", f_1600_2500: "8-in", f_2500_3500: "10-in",
-  f_3500_6000: "12-in", f_6000_12000: "16-in",
+const apiAnswers = (answers) => ({
+  application: answers.application,
+  material: answers.material,
+  materialOther: answers.material === "other" ? answers.materialOther : null,
+  production: answers.production,
+  head: answers.head || null,
+  power: answers.power,
+  deployment: answers.deployment,
+});
+
+/* ---------- Recommendation presentation ---------- */
+const RECOMMENDATION_PRESENTATION = {
+  excavator: {
+    art: "excavator",
+    blurb: "An excavator-mounted production dredge. Engineering will confirm hydraulic requirements, cutterhead options, and the final duty point.",
+  },
+  cable: {
+    art: "cable",
+    blurb: "A cable-deployed dredge pump for crane, barge, gantry, or shore operation. Engineering will confirm drive and jetting requirements.",
+  },
+  sled: {
+    art: "sled",
+    blurb: "A skid-mounted dredge pump guided from shore. Engineering will confirm the final drive package and site arrangement.",
+  },
+  diver: {
+    art: "diver",
+    blurb: "A diver-guided dredge for confined or sensitive work. Engineering will confirm the selected drive and site requirements.",
+  },
+  flooded: {
+    art: "flooded",
+    blurb: "A gravity-fed process-pump configuration. Material, flow, head, and site details will determine the exact model and materials of construction.",
+  },
+  submersible: {
+    art: "submersible",
+    blurb: "A submerged process-pump configuration. Material, flow, head, and site details will determine the exact model and materials of construction.",
+  },
+  selfpriming: {
+    art: "selfpriming",
+    blurb: "An electric self-priming process-pump configuration. Material, flow, head, and suction conditions will determine the exact model.",
+  },
 };
-const PROCESS_POWER = { electric: "Electric", hydraulic: "Hydraulic" };
-
-function recommend(a) {
-  const { application, production, power, deployment, head } = a;
-  const drive = power === "hydraulic" ? "Hydraulic drive package" : "Electric motor drive";
-
-  if (application === "dredging") {
-    /* Production (cu yd/hr) -> pump size, per EDDY Pump platform specs */
-    const ds = {
-      p_150: { size: "4-in", exf: "EXF-4000", gpm: "250–1,200 GPM", prod: "75–150 cu yd/hr" },
-      p_200: { size: "6-in", exf: "EXF-6000", gpm: "450–2,500 GPM", prod: "150–200 cu yd/hr" },
-      p_300: { size: "8-in", exf: "EXF-8000", gpm: "1,400–3,600 GPM", prod: "250–300 cu yd/hr" },
-      p_350: { size: "10-in", exf: "EXF-10000", gpm: "1,600–5,000 GPM", prod: "300–350 cu yd/hr" },
-      p_600: { size: "12-in", exf: "EXF-12000", gpm: "2,600–7,300 GPM", prod: "500–600 cu yd/hr" },
-    }[production] || { size: "8-in", exf: "EXF-8000", gpm: "1,400–3,600 GPM", prod: "250–300 cu yd/hr" };
-    const sizeSpecs = [ds.size + " discharge", ds.gpm + " flow range"];
-    const sledPower = PROCESS_POWER[power] || "Specified drive";
-    const fam = {
-      excavator: { family: ds.exf + " Excavator Dredge Pump Attachment", art: "excavator", blurb: "Mounts to the stick of your excavator and turns it into a production dredge. Hydraulic drive runs straight off the machine's auxiliary circuit.", specs: [...sizeSpecs, "Runs off excavator hydraulics", "Cutterhead options for hard-packed material"] },
-      cable: { family: "Cable-Deployed Dredge Pump — " + ds.size, art: "cable", blurb: "Lowered by crane or cable from shore, barge, or gantry. Available in electric or hydraulic drive with water-jetting rings for fast-settling material.", specs: [...sizeSpecs, drive, "Optional water jetting ring"] },
-      sled: { family: sledPower + " Dredge Sled — " + ds.size, art: "sled", blurb: "The EDDY Pump mounted on a skid frame, winched across the bottom from shore — steady production with a minimal equipment footprint.", specs: [...sizeSpecs, "Winch-guided from shore", "Low equipment footprint"] },
-      diver: { family: "Diver-Operated Dredge — " + ds.size, art: "diver", blurb: "A diver-guided EDDY Pump for precise removal in confined or sensitive areas where larger equipment can't work.", specs: [...sizeSpecs, "Precise, diver-directed dredging", "Confined and sensitive areas"] },
-    }[deployment];
-    return fam || { family: "EDDY Dredge System", art: "dredging", blurb: "Our engineering team will match the right dredge configuration to your project.", specs: sizeSpecs };
-  }
-
-  // Process pump path: flow sets size; deployment and power remain authoritative.
-  const size = PUMP_SIZE[production] || "4-in";
-  const config = { flooded: { label: "Flooded Suction Pump", art: "flooded" }, submersible: { label: "Submersible Pump", art: "submersible" }, selfpriming: { label: "Self-Priming Pump", art: "selfpriming" } }[deployment] || { label: "Process Pump", art: "slurry" };
-  const headSpecs = head === "h_over" ? ["120+ ft head — engineering review required"] : [];
-  return {
-    family: `EDDY Pump ${size} ${config.label} — ${PROCESS_POWER[a.power] || "Specified drive"}`,
-    art: config.art,
-    blurb: "The core EDDY Pump design: a geometrically induced eddy current instead of a close-tolerance impeller — high solids tolerance, low wear, no clogging on the material you described.",
-    specs: [`${size} discharge`, config.label + " configuration", drive, ...headSpecs, "Passes large solids without clogging"],
-  };
-}
 
 function labelFor(qid, optId) {
   const q = QUESTIONS[qid];
@@ -364,6 +362,11 @@ function EddyConfigurator() {
   const [submitError, setSubmitError] = useState("");
   const [submissionId, setSubmissionId] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [recommendation, setRecommendation] = useState(null);
+  const [previewStatus, setPreviewStatus] = useState("idle");
+  const [previewError, setPreviewError] = useState("");
+  const [previewAttempt, setPreviewAttempt] = useState(0);
+  const [rulesVersion, setRulesVersion] = useState("");
   const stepTopRef = useRef(null);
   const headingRef = useRef(null);
   const quoteRef = useRef(null);
@@ -376,8 +379,15 @@ function EddyConfigurator() {
   const questionOptions = filterQuestionOptions(currentQid, question?.options || [], answers);
   const totalSteps = answers.application ? track.length : 5;
 
-  const rec = useMemo(() => (done ? recommend(answers) : null), [done, answers]);
-  const nameInvalid = touched.name && !lead.name.trim();
+  const rec = useMemo(() => {
+    if (!recommendation) return null;
+    const presentation = RECOMMENDATION_PRESENTATION[answers.deployment] || {
+      art: "slurry",
+      blurb: "Engineering will confirm the exact equipment after reviewing the complete duty point.",
+    };
+    return { ...recommendation, ...presentation };
+  }, [recommendation, answers.deployment]);
+  const nameInvalid = touched.name && !validName(lead.name);
   const emailInvalid = touched.email && !validEmail(lead.email);
 
   useEffect(() => {
@@ -388,6 +398,40 @@ function EddyConfigurator() {
     headingRef.current?.focus({ preventScroll: true });
     stepTopRef.current?.scrollIntoView({ block: "start" });
   }, [stepIdx, done, submitted]);
+
+  useEffect(() => {
+    if (!done) {
+      setRecommendation(null);
+      setPreviewStatus("idle");
+      setPreviewError("");
+      setRulesVersion("");
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setRecommendation(null);
+    setPreviewStatus("loading");
+    setPreviewError("");
+    fetch(`${API_BASE}/v1/recommendations/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers: apiAnswers(answers) }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(apiErrorMessage(result.detail));
+        setRecommendation(result.recommendation);
+        setRulesVersion(result.rules_version || "");
+        setPreviewStatus("ready");
+      })
+      .catch((error) => {
+        if (error.name === "AbortError") return;
+        setPreviewError(error.message || "We couldn't calculate a verified recommendation. Please try again.");
+        setPreviewStatus("error");
+      });
+    return () => controller.abort();
+  }, [done, answers, previewAttempt]);
 
   const goToQuote = () => {
     if (!quoteRef.current) return;
@@ -409,14 +453,14 @@ function EddyConfigurator() {
     if (q.key === "material" && opt.id === "other") { setShowOther(true); return; }
     let next = { ...answers, [q.key]: opt.id };
     if (q.key === "application" && answers.application && answers.application !== opt.id) next = { application: opt.id };
-    if (q.key === "production" && opt.id !== "f_50_200") delete next.head;
     if (q.key === "deployment" && opt.id === "excavator") next.power = "hydraulic";
     if (q.key === "deployment" && opt.id !== "excavator" && answers.deployment === "excavator") delete next.power;
+    if (q.key === "deployment" && opt.id === "selfpriming" && answers.power === "hydraulic") delete next.power;
     advance(next);
   };
 
   const continueOther = () => {
-    if (!otherText.trim()) return;
+    if (otherText.trim().length < 2) return;
     advance({ ...answers, material: "other", materialOther: otherText.trim() });
   };
 
@@ -462,7 +506,7 @@ function EddyConfigurator() {
   const numberOrNull = (value) => value === "" ? null : Number(value);
 
   const handleSubmit = async () => {
-    if (!lead.name.trim() || !validEmail(lead.email) || submitting) return;
+    if (!validName(lead.name) || !validEmail(lead.email) || submitting) return;
     if (window.location.protocol !== "https:") {
       setSubmitError("Secure HTTPS is required before project information can be submitted. Please contact EDDY Pump directly while the secure connection is being provisioned.");
       return;
@@ -470,15 +514,7 @@ function EddyConfigurator() {
 
     const submissionData = {
       customer: { ...lead, name: lead.name.trim(), email: lead.email.trim() },
-      answers: {
-        application: answers.application,
-        material: answers.material,
-        materialOther: answers.material === "other" ? answers.materialOther : null,
-        production: answers.production,
-        head: answers.head || null,
-        power: answers.power,
-        deployment: answers.deployment,
-      },
+      answers: apiAnswers(answers),
       project_details: {
         discharge_distance_ft: numberOrNull(project.discharge_distance_ft),
         elevation_gain_ft: numberOrNull(project.elevation_gain_ft),
@@ -486,7 +522,9 @@ function EddyConfigurator() {
         solids_size_in: numberOrNull(project.solids_size_in),
         specific_gravity: numberOrNull(project.specific_gravity),
         percent_solids: numberOrNull(project.percent_solids),
-        excavator_model: project.excavator_model || null,
+        excavator_model: answers.deployment === "excavator"
+          ? project.excavator_model || null
+          : null,
         pipe_diameter_in: numberOrNull(project.pipe_diameter_in),
         notes: project.notes || null,
       },
@@ -732,7 +770,7 @@ function EddyConfigurator() {
                   <p className="flowHint">
                     {currentQid === "production_dredge"
                       ? "Pump size comes from this production/GPM range; your deployment choice determines the dredge system type—excavator attachment, cable-deployed pump, dredge sled, or diver-operated dredge."
-                      : "Flow rate determines pump size. Your deployment choice determines the pump configuration. An EDDY Pump engineer will confirm the final duty point."}
+                      : "Flow sets the preliminary duty band; it does not select an exact pump size. Engineering will confirm the model from GPM, TDH, material, and site conditions."}
                   </p>
                 </div>
               ) : (
@@ -751,14 +789,36 @@ function EddyConfigurator() {
                 <div className="otherBox">
                   <label htmlFor="other-material">WHAT ARE YOU MOVING?</label>
                   <div className="otherRow">
-                    <input id="other-material" autoFocus placeholder="e.g. drilling mud, fly ash, fish waste…" value={otherText}
+                    <input id="other-material" autoFocus minLength="2" maxLength="500" placeholder="e.g. drilling mud, fly ash, fish waste…" value={otherText}
                       onChange={(e) => setOtherText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") continueOther(); }} />
-                    <button className="cta" style={{marginTop: 0}} disabled={!otherText.trim()} onClick={continueOther}>Continue</button>
+                    <button className="cta" style={{marginTop: 0}} disabled={otherText.trim().length < 2} onClick={continueOther}>Continue</button>
                   </div>
                 </div>
               )}
             </>
+          )}
+
+          {done && !rec && !submitted && (
+            <div className="result" ref={stepTopRef}>
+              <div className="stepNav">
+                <button className="backbtn" onClick={back}>← Change my answers</button>
+              </div>
+              <div className="eyebrow">VERIFIED PRELIMINARY RECOMMENDATION</div>
+              <div className="previewPanel" role="status" aria-live="polite">
+                <h1 className="q" ref={headingRef} tabIndex="-1">
+                  {previewStatus === "error" ? "We couldn't verify your recommendation" : "Checking the current engineering rules…"}
+                </h1>
+                {previewStatus === "error" ? (
+                  <>
+                    <p className="sub">{previewError}</p>
+                    <button className="cta" type="button" onClick={() => setPreviewAttempt((attempt) => attempt + 1)}>Try again</button>
+                  </>
+                ) : (
+                  <p className="sub">Your selections are being checked by the same rule set used when the project is submitted.</p>
+                )}
+              </div>
+            </div>
           )}
 
           {done && rec && !submitted && (
@@ -782,6 +842,7 @@ function EddyConfigurator() {
                     This recommendation identifies the right product family for your application.
                     Final pump sizing, drive selection, and pricing are confirmed by an EDDY Pump
                     sales engineer based on your site conditions, pumping distance, and material analysis.
+                    {rulesVersion && <><br />Verified with engineering rules {rulesVersion}.</>}
                   </p>
                 </div>
               </div>
@@ -795,7 +856,7 @@ function EddyConfigurator() {
                       <div className="sectionLabel">YOUR CONTACT INFORMATION</div>
                       <div className="fieldGroup">
                         <label htmlFor="contact-name">Full name <span>(required)</span></label>
-                        <input id="contact-name" autoComplete="name" maxLength="120" required aria-invalid={nameInvalid} aria-describedby={nameInvalid ? "contact-name-error" : undefined} value={lead.name} onBlur={() => setTouched({ ...touched, name: true })} onChange={(e) => setLead({ ...lead, name: e.target.value })} />
+                        <input id="contact-name" autoComplete="name" minLength="2" maxLength="120" required aria-invalid={nameInvalid} aria-describedby={nameInvalid ? "contact-name-error" : undefined} value={lead.name} onBlur={() => setTouched({ ...touched, name: true })} onChange={(e) => setLead({ ...lead, name: e.target.value })} />
                         {nameInvalid && <span className="fieldError" id="contact-name-error" role="alert">Enter your name.</span>}
                       </div>
                       <div className="fieldGroup">
@@ -811,25 +872,25 @@ function EddyConfigurator() {
                         <label htmlFor="contact-phone">Phone <span>(optional)</span></label>
                         <input id="contact-phone" autoComplete="tel" maxLength="40" type="tel" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} />
                       </div>
-                      <div className="fieldGroup mainNotes"><label htmlFor="project-notes">Project notes <span>(optional)</span></label><textarea id="project-notes" maxLength="2000" placeholder="Material, site conditions, schedule, voltage, viscosity, abrasiveness, or anything else we should know" value={project.notes} onChange={(e) => setProject({ ...project, notes: e.target.value })} /></div>
+                      <div className="fieldGroup mainNotes"><label htmlFor="project-notes">Project notes <span>(optional)</span></label><textarea id="project-notes" maxLength="4000" placeholder="Material, site conditions, schedule, voltage, viscosity, abrasiveness, or anything else we should know" value={project.notes} onChange={(e) => setProject({ ...project, notes: e.target.value })} /></div>
 
                       <details className="projectDetails">
                         <summary>Add optional project details for a faster, more accurate review</summary>
                         <div className="projectGrid">
-                          <div className="fieldGroup"><label htmlFor="project-distance">Discharge distance (ft)</label><input id="project-distance" inputMode="decimal" type="number" min="0" max="100000" value={project.discharge_distance_ft} onChange={(e) => setProject({ ...project, discharge_distance_ft: e.target.value })} /></div>
-                          <div className="fieldGroup"><label htmlFor="project-elevation">Elevation gain (ft)</label><input id="project-elevation" inputMode="decimal" type="number" min="-10000" max="10000" value={project.elevation_gain_ft} onChange={(e) => setProject({ ...project, elevation_gain_ft: e.target.value })} /></div>
-                          <div className="fieldGroup"><label htmlFor="project-depth">Water depth (ft)</label><input id="project-depth" inputMode="decimal" type="number" min="0" max="10000" value={project.water_depth_ft} onChange={(e) => setProject({ ...project, water_depth_ft: e.target.value })} /></div>
-                          <div className="fieldGroup"><label htmlFor="project-solids">Maximum solids size (in)</label><input id="project-solids" inputMode="decimal" type="number" min="0" max="100" value={project.solids_size_in} onChange={(e) => setProject({ ...project, solids_size_in: e.target.value })} /></div>
-                          <div className="fieldGroup"><label htmlFor="project-gravity">Specific gravity</label><input id="project-gravity" inputMode="decimal" type="number" min="0.1" max="10" step="0.01" value={project.specific_gravity} onChange={(e) => setProject({ ...project, specific_gravity: e.target.value })} /></div>
-                          <div className="fieldGroup"><label htmlFor="project-percent">Percent solids</label><input id="project-percent" inputMode="decimal" type="number" min="0" max="100" step="0.1" value={project.percent_solids} onChange={(e) => setProject({ ...project, percent_solids: e.target.value })} /></div>
-                          <div className="fieldGroup"><label htmlFor="project-pipe">Pipe diameter (in)</label><input id="project-pipe" inputMode="decimal" type="number" min="0.25" max="100" value={project.pipe_diameter_in} onChange={(e) => setProject({ ...project, pipe_diameter_in: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-distance">Discharge distance (ft)</label><input id="project-distance" inputMode="decimal" type="number" min="0" max="50000" step="any" value={project.discharge_distance_ft} onChange={(e) => setProject({ ...project, discharge_distance_ft: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-elevation">Elevation gain (ft)</label><input id="project-elevation" inputMode="decimal" type="number" min="-1000" max="5000" step="any" value={project.elevation_gain_ft} onChange={(e) => setProject({ ...project, elevation_gain_ft: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-depth">Water depth (ft)</label><input id="project-depth" inputMode="decimal" type="number" min="0" max="1000" step="any" value={project.water_depth_ft} onChange={(e) => setProject({ ...project, water_depth_ft: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-solids">Maximum solids size (in)</label><input id="project-solids" inputMode="decimal" type="number" min="0" max="48" step="any" value={project.solids_size_in} onChange={(e) => setProject({ ...project, solids_size_in: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-gravity">Specific gravity</label><input id="project-gravity" inputMode="decimal" type="number" min="0.1" max="10" step="any" value={project.specific_gravity} onChange={(e) => setProject({ ...project, specific_gravity: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-percent">Percent solids</label><input id="project-percent" inputMode="decimal" type="number" min="0" max="100" step="any" value={project.percent_solids} onChange={(e) => setProject({ ...project, percent_solids: e.target.value })} /></div>
+                          <div className="fieldGroup"><label htmlFor="project-pipe">Pipe diameter (in)</label><input id="project-pipe" inputMode="decimal" type="number" min="0.25" max="48" step="any" value={project.pipe_diameter_in} onChange={(e) => setProject({ ...project, pipe_diameter_in: e.target.value })} /></div>
                           {answers.deployment === "excavator" && <div className="fieldGroup"><label htmlFor="project-excavator">Excavator model</label><input id="project-excavator" maxLength="120" value={project.excavator_model} onChange={(e) => setProject({ ...project, excavator_model: e.target.value })} /></div>}
                         </div>
                       </details>
                       <label className="honeypot" aria-hidden="true">Website<input tabIndex="-1" autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
                     </div>
                     {submitError && <div className="submitError" role="alert">{submitError}</div>}
-                    <button className="cta" type="submit" disabled={!lead.name.trim() || !validEmail(lead.email) || submitting}>
+                    <button className="cta" type="submit" disabled={!validName(lead.name) || !validEmail(lead.email) || submitting}>
                       {submitting ? "Sending securely…" : "Submit my pricing request"}
                     </button>
                   </form>
