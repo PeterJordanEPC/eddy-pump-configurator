@@ -94,14 +94,7 @@ const Art = ({ kind }) => {
         <path {...d} d="M40 90 H120" />
       </g>
     ),
-    diesel: (
-      <g>
-        <rect {...s} x="35" y="50" width="60" height="40" rx="4" />
-        <path {...s} d="M50 50 V35 H60 V50" />
-        <path {...s} d="M95 60 H115 L122 68 V90 H95" />
-        <path {...d} d="M55 28 Q58 22 55 16 M65 28 Q68 22 65 16" />
-      </g>
-    ),
+
     excavator: (
       <g>
         <rect {...s} x="30" y="65" width="45" height="25" rx="4" />
@@ -118,14 +111,7 @@ const Art = ({ kind }) => {
         <path {...d} d="M20 70 Q45 62 70 70 T120 70 T145 70" />
       </g>
     ),
-    remote: (
-      <g>
-        <path {...s} d="M40 65 H110 L120 78 H32 Z" />
-        <circle {...s} cx="52" cy="88" r="7" /><circle {...s} cx="95" cy="88" r="7" />
-        <path {...s} d="M70 65 V50 H85" />
-        <path {...d} d="M90 48 Q100 40 112 44 M92 52 Q104 48 114 54" />
-      </g>
-    ),
+
     sled: (
       <g>
         <path {...s} d="M35 88 Q28 88 28 80 L28 78 M35 88 H115 M115 88 Q125 88 125 78" />
@@ -142,14 +128,7 @@ const Art = ({ kind }) => {
         <path {...d} d="M15 25 Q40 18 65 25 T115 25 T150 25" />
       </g>
     ),
-    auger: (
-      <g>
-        <path {...s} d="M40 75 H120" />
-        <path {...s} d="M50 60 Q58 75 50 90 M70 60 Q78 75 70 90 M90 60 Q98 75 90 90" />
-        <path {...s} d="M120 68 H135 V82 H120" />
-        <path {...d} d="M15 45 Q40 38 65 45 T115 45 T150 45" />
-      </g>
-    ),
+
     flooded: (
       <g>
         <rect {...s} x="30" y="30" width="45" height="45" />
@@ -270,7 +249,6 @@ const QUESTIONS = {
     options: [
       { id: "electric", label: "Electric", desc: "Plant power or generator on site.", art: "electric" },
       { id: "hydraulic", label: "Hydraulic", desc: "Excavator or hydraulic power unit available.", art: "hydraulic" },
-      { id: "diesel", label: "Diesel / self-contained", desc: "No site power — bring the power with the unit.", art: "diesel" },
     ],
   },
   deployment_dredge: {
@@ -281,10 +259,8 @@ const QUESTIONS = {
     options: [
       { id: "excavator", label: "Excavator Attachment", desc: "Mounts to the stick of an excavator you already run.", art: "excavator" },
       { id: "cable", label: "Cable Deployed", desc: "Lowered by crane or cable from shore, barge, or gantry.", art: "cable" },
-      { id: "remote", label: "Remote Operated Dredge", desc: "Crewless, self-propelled unit driven from shore.", art: "remote" },
       { id: "sled", label: "Dredge Sled", desc: "Skid-mounted pump winched across the bottom.", art: "sled" },
       { id: "diver", label: "Diver Operated Dredge", desc: "Diver-guided pump for precise, confined work.", art: "diver" },
-      { id: "auger", label: "Mini Auger ModDredge", desc: "Compact auger dredge for lagoons and tight footprints.", art: "auger" },
     ],
   },
   deployment_pump: {
@@ -320,11 +296,11 @@ const PUMP_SIZE = {
   f_900_1600: "6-in", f_1600_2500: "8-in", f_2500_3500: "10-in",
   f_3500_6000: "12-in", f_6000_12000: "16-in",
 };
-const PROCESS_POWER = { electric: "Electric", hydraulic: "Hydraulic", diesel: "Diesel-Powered" };
+const PROCESS_POWER = { electric: "Electric", hydraulic: "Hydraulic" };
 
 function recommend(a) {
   const { application, production, power, deployment, head } = a;
-  const drive = power === "diesel" ? "Diesel drive package" : power === "hydraulic" ? "Hydraulic drive package" : "Electric motor drive";
+  const drive = power === "hydraulic" ? "Hydraulic drive package" : "Electric motor drive";
 
   if (application === "dredging") {
     /* Production (cu yd/hr) -> pump size, per EDDY Pump platform specs */
@@ -336,14 +312,12 @@ function recommend(a) {
       p_600: { size: "12-in", exf: "EXF-12000", gpm: "2,600–7,300 GPM", prod: "500–600 cu yd/hr" },
     }[production] || { size: "8-in", exf: "EXF-8000", gpm: "1,400–3,600 GPM", prod: "250–300 cu yd/hr" };
     const sizeSpecs = [ds.size + " discharge", ds.gpm + " flow range"];
-    const sledPower = power === "hydraulic" ? "Hydraulic" : power === "electric" ? "Electric" : "Diesel-Powered";
+    const sledPower = PROCESS_POWER[power] || "Specified drive";
     const fam = {
       excavator: { family: ds.exf + " Excavator Dredge Pump Attachment", art: "excavator", blurb: "Mounts to the stick of your excavator and turns it into a production dredge. Hydraulic drive runs straight off the machine's auxiliary circuit.", specs: [...sizeSpecs, "Runs off excavator hydraulics", "Cutterhead options for hard-packed material"] },
       cable: { family: "Cable-Deployed Dredge Pump — " + ds.size, art: "cable", blurb: "Lowered by crane or cable from shore, barge, or gantry. Available in electric or hydraulic drive with water-jetting rings for fast-settling material.", specs: [...sizeSpecs, drive, "Optional water jetting ring"] },
-      remote: { family: "Subdredge™ Remote-Operated Dredge — " + ds.size, art: "remote", blurb: "A crewless, self-propelled dredge driven from shore — built around the EDDY Pump non-clog design for high-solids production without divers or support boats.", specs: [...sizeSpecs, "Remote operation from shore", "EDDY Pump non-clog rotor"] },
       sled: { family: sledPower + " Dredge Sled — " + ds.size, art: "sled", blurb: "The EDDY Pump mounted on a skid frame, winched across the bottom from shore — steady production with a minimal equipment footprint.", specs: [...sizeSpecs, "Winch-guided from shore", "Low equipment footprint"] },
       diver: { family: "Diver-Operated Dredge — " + ds.size, art: "diver", blurb: "A diver-guided EDDY Pump for precise removal in confined or sensitive areas where larger equipment can't work.", specs: [...sizeSpecs, "Precise, diver-directed dredging", "Confined and sensitive areas"] },
-      auger: { family: "Mini Auger ModDredge — " + ds.size, art: "auger", blurb: "A compact auger dredge for lagoons, small ponds, and tight footprints — the auger feeds settled material straight into the EDDY Pump.", specs: [...sizeSpecs, "Compact footprint", "Auger-fed for settled solids"] },
     }[deployment];
     return fam || { family: "EDDY Dredge System", art: "dredging", blurb: "Our engineering team will match the right dredge configuration to your project.", specs: sizeSpecs };
   }
@@ -757,7 +731,7 @@ function EddyConfigurator() {
                   </select>
                   <p className="flowHint">
                     {currentQid === "production_dredge"
-                      ? "Pump size comes from this production/GPM range; your deployment choice determines the dredge system type—excavator attachment, cable-deployed pump, Subdredge, dredge sled, diver-operated dredge, or Mini Auger ModDredge."
+                      ? "Pump size comes from this production/GPM range; your deployment choice determines the dredge system type—excavator attachment, cable-deployed pump, dredge sled, or diver-operated dredge."
                       : "Flow rate determines pump size. Your deployment choice determines the pump configuration. An EDDY Pump engineer will confirm the final duty point."}
                   </p>
                 </div>

@@ -54,6 +54,35 @@ const checks = [
   [source.includes("reportValidity()") && source.includes("lastPayloadSignatureRef") && source.includes(".otherRow { flex-direction:column"), "numeric constraints, changed-payload idempotency, and mobile Other layout are protected"],
   [source.includes('aria-invalid={nameInvalid}') && source.includes('aria-invalid={emailInvalid}'), "required contact fields expose inline validation state"],
   [source.includes("Pump size comes from this production/GPM range") && source.includes("deployment choice determines the dredge system type"), "dredge sizing and deployment responsibilities are explicit"],
+  [
+    source.includes('{ id: "electric", label: "Electric"')
+      && source.includes('{ id: "hydraulic", label: "Hydraulic"')
+      && !source.includes('{ id: "diesel", label: "Diesel / self-contained"'),
+    "power selection offers only electric and hydraulic",
+  ],
+  [
+    !source.includes('{ id: "remote", label: "Remote Operated Dredge"')
+      && !source.includes('{ id: "auger", label: "Mini Auger ModDredge"'),
+    "dredge deployment excludes remote-operated and mini-auger options",
+  ],
+  [
+    !source.slice(source.indexOf("function recommend"), source.indexOf("function labelFor")).includes('diesel')
+      && !source.slice(source.indexOf("function recommend"), source.indexOf("function labelFor")).includes('remote')
+      && !source.slice(source.indexOf("function recommend"), source.indexOf("function labelFor")).includes('auger'),
+    "browser recommendation logic excludes removed configuration values",
+  ],
+  [
+    !source.includes("Subdredge")
+      && !source.includes("Mini Auger")
+      && !source.includes("Diesel"),
+    "rendered customer copy does not advertise removed configurations",
+  ],
+  [
+    !readme.includes("diesel.jpg")
+      && !readme.includes("remote.jpg")
+      && !readme.includes("auger.jpg"),
+    "product-image inventory excludes removed configurations",
+  ],
   [source.includes("<details className=\"projectDetails\">"), "optional engineering fields are progressive disclosure"],
   [!source.includes("PHOTO PLACEHOLDER"), "prototype placeholder copy removed"],
   [bundle.length > 1000 && bundle.length < 100000, "production bundle has expected size"],

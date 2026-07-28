@@ -56,8 +56,8 @@ Cards use a local image when a corresponding file is available and otherwise fal
 | `slurry.jpg` | Process pump application |
 | `sand.jpg`, `sludge.jpg`, `tailings.jpg`, `debris.jpg`, `other.jpg` | Materials |
 | `flow.jpg` | Flow, production, and head ranges |
-| `electric.jpg`, `hydraulic.jpg`, `diesel.jpg` | Power |
-| `excavator.jpg`, `cable.jpg`, `remote.jpg`, `sled.jpg`, `diver.jpg`, `auger.jpg` | Dredging deployment |
+| `electric.jpg`, `hydraulic.jpg` | Power |
+| `excavator.jpg`, `cable.jpg`, `sled.jpg`, `diver.jpg` | Dredging deployment |
 | `flooded.jpg`, `submersible.jpg`, `selfpriming.jpg` | Process-pump configuration |
 
 Use approved landscape assets around 1200 pixels wide with consistent lighting and composition. Do not hotlink production photos from third-party sites.
