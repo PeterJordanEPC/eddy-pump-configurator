@@ -1,5 +1,5 @@
 import { readFileSync, statSync } from "node:fs";
-import { clearAnswersFromTrack } from "../src/flow-state.mjs";
+import { clearAnswersFromTrack, filterQuestionOptions } from "../src/flow-state.mjs";
 
 const index = readFileSync("index.html", "utf8");
 const source = readFileSync("src/app.jsx", "utf8");
@@ -16,7 +16,7 @@ const checks = [
   [/if \(done\) \{[\s\S]*?setIdempotencyKey\(newIdempotencyKey\(\)\);[\s\S]*?setDone\(false\);[\s\S]*?return;/.test(source), "changed answers receive a fresh idempotency key"],
   [source.includes('htmlFor="other-material"') && source.includes('id="other-material"'), "other-material input has an associated label"],
   [source.includes('const SELECT_QUESTION_IDS = new Set(["production_dredge", "flow_pump"]);') && source.includes('<select id="flow-rate-selection"'), "dredge and pump flow questions use a compact dropdown"],
-  [source.includes('if (a.deployment !== "excavator") t.push("power")') && source.includes('next.power = "hydraulic"'), "excavator selection fixes hydraulic power and skips an invalid power choice"],
+  [source.includes('["application", "material", "deployment_dredge", "production_dredge"]') && source.includes('if (a.deployment !== "excavator") t.push("power")') && source.includes('next.power = "hydraulic"'), "deployment precedes production and excavator selection fixes hydraulic power"],
   [source.includes('return ["application", "material", "flow_pump", "head", "deployment_pump", "power"]'), "every process-pump path captures head before configuration and power"],
   [source.includes("clearAnswersFromTrack({") && source.includes("answers, track, targetIdx, questions: QUESTIONS"), "Back delegates target/downstream cleanup to the behavior-tested flow helper"],
   [[
@@ -38,6 +38,7 @@ const checks = [
     "6,000–12,000 GPM (16-in Pump)",
   ].every((range) => source.includes(range)) && !source.includes("(5-in Pump)"), "process flow options include exact pump sizes and exclude 5-in"],
   [!source.includes("HH2000") && source.includes("${PROCESS_POWER[a.power] || \"Specified drive\"}"), "process recommendation preserves deployment and includes selected power without HH2000 override"],
+  [!(/\bclass\b/i.test(source.slice(source.indexOf("function recommend"), source.indexOf("function labelFor")))), "customer-facing recommendations do not use the word class"],
   [source.includes("Head is captured for engineering review") && !readme.includes("HH2000"), "high-head guidance matches non-overriding recommendation rule"],
   [source.includes('className="stepNav"') && source.includes("← Back to previous question"), "Back navigation is placed at the top of each revisable step"],
   [source.includes('className="brand brandHome"') && source.includes('href="/"') && source.includes('aria-label="Start over from the beginning"'), "header logo is an accessible start-over link"],
@@ -59,30 +60,43 @@ const checks = [
   [statSync("images/eddy-pump-corporation-logo.webp").size < 100000, "optimized logo is present"],
 ];
 
-const dredgeTrack = ["application", "material", "production_dredge", "deployment_dredge"];
+const dredgeTrack = ["application", "material", "deployment_dredge", "production_dredge"];
 const flowQuestions = {
   application: { key: "application" },
   material: { key: "material" },
-  production_dredge: { key: "production" },
   deployment_dredge: { key: "deployment" },
+  production_dredge: { key: "production" },
 };
 const revised = clearAnswersFromTrack({
   answers: {
-    application: "dredging", material: "sand", production: "p_200",
-    deployment: "excavator", power: "hydraulic",
+    application: "dredging", material: "sand", deployment: "excavator",
+    production: "p_200", power: "hydraulic",
   },
   track: dredgeTrack,
-  targetIdx: 3,
+  targetIdx: 2,
   questions: flowQuestions,
 });
 checks.push([
-  revised.deployment === undefined && revised.power === undefined,
-  "Back from an excavator recommendation clears deployment and implied hydraulic power",
+  revised.deployment === undefined && revised.production === undefined && revised.power === undefined,
+  "Back to deployment clears deployment, production, and implied hydraulic power",
 ]);
 const replacement = { ...revised, deployment: "cable", power: "electric" };
 checks.push([
   replacement.deployment === "cable" && replacement.power === "electric",
   "revising excavator deployment produces a clean replacement deployment and power payload",
+]);
+
+const productionOptions = [
+  { id: "p_150" }, { id: "p_200" }, { id: "p_300" }, { id: "p_350" }, { id: "p_600" },
+];
+checks.push([
+  filterQuestionOptions("production_dredge", productionOptions, { deployment: "sled" })
+    .map((option) => option.id).join(",") === "p_150",
+  "dredge sled exposes only the 4-inch 75–150 cu yd/hr production option",
+]);
+checks.push([
+  filterQuestionOptions("production_dredge", productionOptions, { deployment: "cable" }).length === 5,
+  "other dredge deployments retain all production ranges",
 ]);
 
 const failed = checks.filter(([ok]) => !ok);
