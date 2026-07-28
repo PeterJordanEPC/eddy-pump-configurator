@@ -124,9 +124,17 @@ checks.push([
   "dredge sled exposes only the 4-inch 75–150 cu yd/hr production option",
 ]);
 checks.push([
-  filterQuestionOptions("production_dredge", productionOptions, { deployment: "cable" }).length === 5,
-  "other dredge deployments retain all production ranges",
+  filterQuestionOptions("production_dredge", productionOptions, { deployment: "diver" })
+    .map((option) => option.id).join(",") === "p_150,p_200",
+  "diver-operated dredge exposes only the 4-inch and 6-inch production options",
 ]);
+for (const deployment of ["excavator", "cable", undefined, "unknown"]) {
+  checks.push([
+    filterQuestionOptions("production_dredge", productionOptions, { deployment })
+      .map((option) => option.id).join(",") === "p_150,p_200,p_300,p_350,p_600",
+    `${deployment || "unspecified"} dredge deployment retains every production range in order`,
+  ]);
+}
 
 const failed = checks.filter(([ok]) => !ok);
 for (const [ok, label] of checks) console.log(`${ok ? "PASS" : "FAIL"} ${label}`);

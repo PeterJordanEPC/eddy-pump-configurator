@@ -2,6 +2,9 @@ export function filterQuestionOptions(questionId, options, answers) {
   if (questionId === "production_dredge" && answers.deployment === "sled") {
     return options.filter((option) => option.id === "p_150");
   }
+  if (questionId === "production_dredge" && answers.deployment === "diver") {
+    return options.filter((option) => option.id === "p_150" || option.id === "p_200");
+  }
   return options;
 }
 
