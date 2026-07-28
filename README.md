@@ -46,7 +46,8 @@ Do not edit `app.js` directly. Run `npm run build` after changing `src/app.jsx`.
 - Published standard flow bands run through 7,300 GPM. Higher targets route to custom engineering review without fabricating a 16-inch recommendation.
 - Self-Priming is electric-only in the released configurator. Flooded Suction and Submersible retain electric and hydraulic choices.
 - Head is captured on every process path for engineering review and never overrides the selected configuration or power.
-- The versioned backend preview is the sole source of the visible recommendation; the browser does not maintain a second recommendation engine.
+- The versioned backend preview is the sole source of visible recommendation text; the browser does not maintain a second recommendation engine.
+- Lead capture is independent of preview availability. The contact form remains available while preview is loading or unavailable, and the submission API stores bounded stale/unsupported selections for engineering review rather than discarding valid contact information.
 - Project notes are always visible in the main contact section; detailed engineering fields use progressive disclosure
 
 ## Product photography
