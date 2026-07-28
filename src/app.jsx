@@ -1,7 +1,8 @@
 
 import { clearAnswersFromTrack, filterQuestionOptions } from "./flow-state.mjs";
+import { parsePreviewResponse, previewErrorMessage, shouldShowLeadCapture } from "./preview-state.mjs";
 
-const { useState, useMemo, useEffect, useRef } = React;
+const { useState, useEffect, useRef } = React;
 const API_BASE = "https://api-production-1940.up.railway.app";
 const newIdempotencyKey = () => `web:${window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 const validName = (value) => value.trim().length >= 2;
@@ -300,36 +301,15 @@ const apiAnswers = (answers) => ({
   deployment: answers.deployment,
 });
 
-/* ---------- Recommendation presentation ---------- */
-const RECOMMENDATION_PRESENTATION = {
-  excavator: {
-    art: "excavator",
-    blurb: "An excavator-mounted production dredge. Engineering will confirm hydraulic requirements, cutterhead options, and the final duty point.",
-  },
-  cable: {
-    art: "cable",
-    blurb: "A cable-deployed dredge pump for crane, barge, gantry, or shore operation. Engineering will confirm drive and jetting requirements.",
-  },
-  sled: {
-    art: "sled",
-    blurb: "A skid-mounted dredge pump guided from shore. Engineering will confirm the final drive package and site arrangement.",
-  },
-  diver: {
-    art: "diver",
-    blurb: "A diver-guided dredge for confined or sensitive work. Engineering will confirm the selected drive and site requirements.",
-  },
-  flooded: {
-    art: "flooded",
-    blurb: "A gravity-fed process-pump configuration. Material, flow, head, and site details will determine the exact model and materials of construction.",
-  },
-  submersible: {
-    art: "submersible",
-    blurb: "A submerged process-pump configuration. Material, flow, head, and site details will determine the exact model and materials of construction.",
-  },
-  selfpriming: {
-    art: "selfpriming",
-    blurb: "An electric self-priming process-pump configuration. Material, flow, head, and suction conditions will determine the exact model.",
-  },
+/* ---------- Local illustration selection; recommendation text comes from the API ---------- */
+const RECOMMENDATION_ART = {
+  excavator: "excavator",
+  cable: "cable",
+  sled: "sled",
+  diver: "diver",
+  flooded: "flooded",
+  submersible: "submersible",
+  selfpriming: "selfpriming",
 };
 
 function labelFor(qid, optId) {
@@ -379,14 +359,8 @@ function EddyConfigurator() {
   const questionOptions = filterQuestionOptions(currentQid, question?.options || [], answers);
   const totalSteps = answers.application ? track.length : 5;
 
-  const rec = useMemo(() => {
-    if (!recommendation) return null;
-    const presentation = RECOMMENDATION_PRESENTATION[answers.deployment] || {
-      art: "slurry",
-      blurb: "Engineering will confirm the exact equipment after reviewing the complete duty point.",
-    };
-    return { ...recommendation, ...presentation };
-  }, [recommendation, answers.deployment]);
+  const rec = recommendation;
+  const recommendationArt = RECOMMENDATION_ART[answers.deployment] || "slurry";
   const nameInvalid = touched.name && !validName(lead.name);
   const emailInvalid = touched.email && !validEmail(lead.email);
 
@@ -397,7 +371,7 @@ function EddyConfigurator() {
     }
     headingRef.current?.focus({ preventScroll: true });
     stepTopRef.current?.scrollIntoView({ block: "start" });
-  }, [stepIdx, done, submitted]);
+  }, [stepIdx, done, submitted, previewStatus]);
 
   useEffect(() => {
     if (!done) {
@@ -420,14 +394,16 @@ function EddyConfigurator() {
     })
       .then(async (response) => {
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(apiErrorMessage(result.detail));
-        setRecommendation(result.recommendation);
-        setRulesVersion(result.rules_version || "");
+        if (!response.ok) throw new Error(previewErrorMessage(result.detail));
+        const verified = parsePreviewResponse(result);
+        setRecommendation(verified.recommendation);
+        setRulesVersion(verified.rules_version);
         setPreviewStatus("ready");
       })
       .catch((error) => {
         if (error.name === "AbortError") return;
-        setPreviewError(error.message || "We couldn't calculate a verified recommendation. Please try again.");
+        const detail = error instanceof TypeError ? undefined : error.message;
+        setPreviewError(previewErrorMessage(detail));
         setPreviewStatus("error");
       });
     return () => controller.abort();
@@ -830,11 +806,10 @@ function EddyConfigurator() {
               <div className="resultActions">
                 <button className="quoteJump" onClick={goToQuote}>Request fast project pricing ↓</button>
               </div>
-              <div className="resultCard">
-                <CardImage kind={rec.art} />
+              <div className="resultCard" role="status" aria-live="polite">
+                <CardImage kind={recommendationArt} />
                 <div className="resultBody">
                   <h2 className="fam" ref={headingRef} tabIndex="-1">{rec.family}</h2>
-                  <p className="blurb">{rec.blurb}</p>
                   <div className="speclist">
                     {rec.specs.map((s) => <span key={s} className="chip">{s}</span>)}
                   </div>
@@ -846,7 +821,10 @@ function EddyConfigurator() {
                   </p>
                 </div>
               </div>
+            </div>
+          )}
 
+          {shouldShowLeadCapture({ done, submitted }) && (
               <div className="leadbox" ref={quoteRef} tabIndex="-1" aria-label="Project pricing request">
                 {!submitted ? (
                   <form onSubmit={(event) => { event.preventDefault(); if (event.currentTarget.reportValidity()) handleSubmit(); }}>
@@ -902,7 +880,6 @@ function EddyConfigurator() {
                   </div>
                 )}
               </div>
-            </div>
           )}
 
           {submitted && (

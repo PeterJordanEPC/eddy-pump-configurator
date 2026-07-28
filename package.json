@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "esbuild src/app.jsx --bundle --format=iife --target=es2020 --jsx-factory=React.createElement --jsx-fragment=React.Fragment --minify --legal-comments=none --outfile=app.js",
-    "check": "npm run build && node scripts/check-build.mjs"
+    "test": "node --test scripts/*.test.mjs",
+    "check": "npm run test && npm run build && node scripts/check-build.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.12"
