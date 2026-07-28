@@ -40,10 +40,13 @@ Do not edit `app.js` directly. Run `npm run build` after changing `src/app.jsx`.
 
 ## Configurator flow
 
-- Dredging: material → cubic yards/hour → deployment → power
-- Process pump: material → GPM range → discharge head when applicable → configuration → power
-- GPM ranges map to 1, 2, 3, 4, 6, 8, 10, 12, or 16-inch pump classes; the tool never recommends a 5-inch class
-- Head is captured for engineering review and never overrides the flow-sized pump, selected configuration, or power
+- Dredging: material → deployment → cubic yards/hour → power
+- Process pump: material → GPM range → discharge head → configuration → power
+- Process flow bands are intake ranges, not automatic pump-size selections. The API returns a product family and engineering selects the exact model from the complete duty point.
+- Published standard flow bands run through 7,300 GPM. Higher targets route to custom engineering review without fabricating a 16-inch recommendation.
+- Self-Priming is electric-only in the released configurator. Flooded Suction and Submersible retain electric and hydraulic choices.
+- Head is captured on every process path for engineering review and never overrides the selected configuration or power.
+- The versioned backend preview is the sole source of the visible recommendation; the browser does not maintain a second recommendation engine.
 - Project notes are always visible in the main contact section; detailed engineering fields use progressive disclosure
 
 ## Product photography

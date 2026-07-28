@@ -5,6 +5,13 @@ export function filterQuestionOptions(questionId, options, answers) {
   if (questionId === "production_dredge" && answers.deployment === "diver") {
     return options.filter((option) => option.id === "p_150" || option.id === "p_200");
   }
+  if (
+    questionId === "power"
+    && answers.application === "process"
+    && answers.deployment === "selfpriming"
+  ) {
+    return options.filter((option) => option.id === "electric");
+  }
   return options;
 }
 
