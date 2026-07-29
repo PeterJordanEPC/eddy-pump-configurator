@@ -850,6 +850,12 @@ function EddyConfigurator() {
                         <label htmlFor="contact-phone">Phone <span>(optional)</span></label>
                         <input id="contact-phone" autoComplete="tel" maxLength="40" type="tel" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} />
                       </div>
+                      {answers.deployment === "excavator" && (
+                        <div className="fieldGroup mainNotes">
+                          <label htmlFor="project-excavator">Excavator model you have or plan to use <span>(optional)</span></label>
+                          <input id="project-excavator" maxLength="120" placeholder="e.g. Cat 336, Komatsu PC490" value={project.excavator_model} onChange={(e) => setProject({ ...project, excavator_model: e.target.value })} />
+                        </div>
+                      )}
                       <div className="fieldGroup mainNotes"><label htmlFor="project-notes">Project notes <span>(optional)</span></label><textarea id="project-notes" maxLength="4000" placeholder="Material, site conditions, schedule, voltage, viscosity, abrasiveness, or anything else we should know" value={project.notes} onChange={(e) => setProject({ ...project, notes: e.target.value })} /></div>
 
                       <details className="projectDetails">
@@ -862,7 +868,6 @@ function EddyConfigurator() {
                           <div className="fieldGroup"><label htmlFor="project-gravity">Specific gravity</label><input id="project-gravity" inputMode="decimal" type="number" min="0.1" max="10" step="any" value={project.specific_gravity} onChange={(e) => setProject({ ...project, specific_gravity: e.target.value })} /></div>
                           <div className="fieldGroup"><label htmlFor="project-percent">Percent solids</label><input id="project-percent" inputMode="decimal" type="number" min="0" max="100" step="any" value={project.percent_solids} onChange={(e) => setProject({ ...project, percent_solids: e.target.value })} /></div>
                           <div className="fieldGroup"><label htmlFor="project-pipe">Pipe diameter (in)</label><input id="project-pipe" inputMode="decimal" type="number" min="0.25" max="48" step="any" value={project.pipe_diameter_in} onChange={(e) => setProject({ ...project, pipe_diameter_in: e.target.value })} /></div>
-                          {answers.deployment === "excavator" && <div className="fieldGroup"><label htmlFor="project-excavator">Excavator model</label><input id="project-excavator" maxLength="120" value={project.excavator_model} onChange={(e) => setProject({ ...project, excavator_model: e.target.value })} /></div>}
                         </div>
                       </details>
                       <label className="honeypot" aria-hidden="true">Website<input tabIndex="-1" autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
