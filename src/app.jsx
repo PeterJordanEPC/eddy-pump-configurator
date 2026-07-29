@@ -261,7 +261,7 @@ const QUESTIONS = {
     options: [
       { id: "excavator", label: "Excavator Attachment", desc: "Mounts to the stick of an excavator you already run.", art: "excavator" },
       { id: "cable", label: "Cable Deployed", desc: "Lowered by crane or cable from shore, barge, or gantry.", art: "cable" },
-      { id: "sled", label: "Dredge Sled", desc: "Skid-mounted pump winched across the bottom.", art: "sled" },
+      { id: "sled", label: "Dredge Sled", desc: "Skid-mounted pump winched across the bottom. Ideal for lagoons or small bodies of water.", art: "sled" },
       { id: "diver", label: "Diver Operated Dredge", desc: "Diver-guided pump for precise, confined work.", art: "diver" },
     ],
   },
@@ -680,7 +680,7 @@ function EddyConfigurator() {
           .card { display:grid; grid-template-columns:112px minmax(0,1fr); grid-template-rows:auto auto 1fr; min-height:138px; padding:0; }
           .card .cardArt { grid-column:1; grid-row:1 / 4; width:112px; height:100%; min-height:138px; object-fit:cover; border-right:1px solid var(--line); border-bottom:none; }
           .card h3 { grid-column:2; grid-row:1; margin:14px 14px 3px; font-size:21px; }
-          .card p { grid-column:2; grid-row:2; margin:0 14px; font-size:15px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+          .card p { grid-column:2; grid-row:2; margin:0 14px; font-size:15px; line-height:1.4; }
           .cardCue { grid-column:2; grid-row:3; align-self:end; padding:10px 14px 13px; font-size:12px; }
           .otherRow { flex-direction:column; }
           .otherRow input { min-width:0; width:100%; }
