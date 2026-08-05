@@ -613,7 +613,7 @@ function EddyConfigurator() {
         .quoteJump { background:var(--orange); border:none; color:#FFFFFF; font-family:'Barlow Condensed'; font-size:18px; font-weight:700; letter-spacing:.04em; min-height:52px; padding:13px 20px; text-transform:uppercase; cursor:pointer; }
         .quoteJump:hover, .quoteJump:focus-visible { filter:brightness(.95); outline:3px solid rgba(201,79,10,.24); outline-offset:2px; }
         .resultCard { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--orange); padding: 0; }
-        .resultCard .cardArt { border-bottom: 1px solid var(--line); height:220px; object-fit:cover; }
+        .resultCard .cardArt { border-bottom: 1px solid var(--line); height:auto; aspect-ratio:160/115; object-fit:contain; background:#FFFFFF; }
         .resultBody { padding: 22px 26px 26px; }
         h2.fam { color: var(--blue); font-family:'Barlow Condensed'; font-weight:700; font-size: 36px; line-height:1.1; margin: 0 0 8px; text-transform:uppercase; letter-spacing:0.02em; }
         .blurb { color:#3E4F63; line-height: 1.55; margin: 0 0 16px; font-size: 17px; }
@@ -664,7 +664,6 @@ function EddyConfigurator() {
           .main { flex-direction: column; }
           .sheet { width: 100%; flex: none; margin: 28px 0 0; position: static; }
           .fields { grid-template-columns: 1fr; }
-          .resultCard .cardArt { height:260px; }
         }
         @media (max-width: 620px) {
           .topbar { padding:10px 16px; gap:12px; }
@@ -684,7 +683,6 @@ function EddyConfigurator() {
           .cardCue { grid-column:2; grid-row:3; align-self:end; padding:10px 14px 13px; font-size:12px; }
           .otherRow { flex-direction:column; }
           .otherRow input { min-width:0; width:100%; }
-          .resultCard .cardArt { height:150px; }
           .resultBody, .leadbox { padding:20px 18px; }
           .successScreen { margin-top:8px; padding:38px 20px; }
           .successIcon { width:66px; height:66px; font-size:40px; }
