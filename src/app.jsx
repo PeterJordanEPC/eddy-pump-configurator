@@ -187,7 +187,7 @@ const QUESTIONS = {
     sub: "This sets the track for everything that follows.",
     options: [
       { id: "dredging", label: "Dredging", desc: "Ponds, harbors, canals, tailings ponds — moving material off the bottom.", art: "dredging" },
-      { id: "process", label: "Process Pump", desc: "Pumping from tanks or a facility — transfer and process duty.", art: "slurry" },
+      { id: "process", label: "Process Pump", desc: "Pumping from tanks or a facility — transfer and process duty.", art: "process" },
     ],
   },
   material: {

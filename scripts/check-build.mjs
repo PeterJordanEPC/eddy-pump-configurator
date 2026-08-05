@@ -1,10 +1,15 @@
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { clearAnswersFromTrack, filterQuestionOptions } from "../src/flow-state.mjs";
 
 const index = readFileSync("index.html", "utf8");
 const source = readFileSync("src/app.jsx", "utf8");
 const bundle = readFileSync("app.js", "utf8");
 const readme = readFileSync("README.md", "utf8");
+const approvedPhotoFiles = [
+  "dredging.jpg", "process.jpg", "sand.jpg", "sludge.jpg", "tailings.jpg",
+  "debris.jpg", "other.jpg", "electric.jpg", "excavator.jpg", "cable.jpg",
+  "sled.jpg", "diver.jpg", "flooded.jpg", "submersible.jpg", "selfpriming.jpg",
+];
 
 const checks = [
   [!index.includes("text/babel") && !index.includes("@babel/standalone"), "runtime Babel removed"],
@@ -96,6 +101,10 @@ const checks = [
   [!source.includes("PHOTO PLACEHOLDER"), "prototype placeholder copy removed"],
   [bundle.length > 1000 && bundle.length < 100000, "production bundle has expected size"],
   [statSync("images/eddy-pump-corporation-logo.webp").size < 100000, "optimized logo is present"],
+  [approvedPhotoFiles.every((name) => existsSync(`images/${name}`)), "all approved product photos are present"],
+  [approvedPhotoFiles.every((name) => statSync(`images/${name}`).size > 10000 && statSync(`images/${name}`).size < 500000), "approved product photos have bounded file sizes"],
+  [source.includes('{ id: "process", label: "Process Pump"') && source.includes('art: "process"'), "Process Pump application uses its dedicated approved photo"],
+  [readme.includes("`process.jpg` | Process pump application") && readme.includes("`tailings.jpg`"), "product-photo inventory documents process and tailings mappings"],
 ];
 
 const dredgeTrack = ["application", "material", "deployment_dredge", "production_dredge"];
