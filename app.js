@@ -68,8 +68,8 @@
         .resultActions { margin:0 0 16px; }
         .quoteJump { background:var(--orange); border:none; color:#FFFFFF; font-family:'Barlow Condensed'; font-size:18px; font-weight:700; letter-spacing:.04em; min-height:52px; padding:13px 20px; text-transform:uppercase; cursor:pointer; }
         .quoteJump:hover, .quoteJump:focus-visible { filter:brightness(.95); outline:3px solid rgba(201,79,10,.24); outline-offset:2px; }
-        .resultCard { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--orange); padding: 0; }
-        .resultCard .cardArt { border-bottom: 1px solid var(--line); height:auto; aspect-ratio:160/115; object-fit:contain; background:#FFFFFF; }
+        .resultCard { display:grid; grid-template-columns:minmax(220px,34%) minmax(0,1fr); align-items:stretch; background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--orange); padding: 0; }
+        .resultCard .cardArt { width:100%; height:100%; max-height:300px; align-self:center; border-right:1px solid var(--line); border-bottom:0; aspect-ratio:auto; object-fit:contain; background:#FFFFFF; }
         .resultBody { padding: 22px 26px 26px; }
         h2.fam { color: var(--blue); font-family:'Barlow Condensed'; font-weight:700; font-size: 36px; line-height:1.1; margin: 0 0 8px; text-transform:uppercase; letter-spacing:0.02em; }
         .blurb { color:#3E4F63; line-height: 1.55; margin: 0 0 16px; font-size: 17px; }
@@ -139,6 +139,8 @@
           .cardCue { grid-column:2; grid-row:3; align-self:end; padding:10px 14px 13px; font-size:12px; }
           .otherRow { flex-direction:column; }
           .otherRow input { min-width:0; width:100%; }
+          .resultCard { display:block; }
+          .resultCard .cardArt { height:160px; max-height:160px; object-fit:contain; border-right:0; border-bottom:1px solid var(--line); }
           .resultBody, .leadbox { padding:20px 18px; }
           .successScreen { margin-top:8px; padding:38px 20px; }
           .successIcon { width:66px; height:66px; font-size:40px; }
