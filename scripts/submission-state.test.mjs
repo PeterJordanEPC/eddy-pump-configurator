@@ -29,7 +29,11 @@ test("parseSubmissionResponse rejects malformed successful responses", () => {
   for (const malformed of [
     {},
     { ...validResponse, id: "" },
+    { ...validResponse, id: "   " },
     { ...validResponse, status: "" },
+    { ...validResponse, status: "   " },
+    { ...validResponse, status: "rejected" },
+    { ...validResponse, status: "processing" },
     { ...validResponse, recommendation: null },
     { ...validResponse, recommendation: { ...validRecommendation, specs: "4-in" } },
     { ...validResponse, recommendation: { ...validRecommendation, review_required: "yes" } },

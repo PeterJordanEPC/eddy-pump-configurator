@@ -16,9 +16,8 @@ function validRecommendation(value) {
 export function parseSubmissionResponse(payload) {
   const valid = payload
     && typeof payload.id === "string"
-    && payload.id.length > 0
-    && typeof payload.status === "string"
-    && payload.status.length > 0
+    && payload.id.trim().length > 0
+    && payload.status === "received"
     && validRecommendation(payload.recommendation);
   if (!valid) throw new Error(RECEIPT_FALLBACK);
   return payload;
