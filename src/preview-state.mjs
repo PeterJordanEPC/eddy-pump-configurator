@@ -23,13 +23,12 @@ export function parsePreviewResponse(payload) {
   return payload;
 }
 
-export function previewErrorMessage(detail) {
-  if (typeof detail === "string" && detail.trim()) return detail.trim();
-  if (Array.isArray(detail)) {
-    const messages = detail
-      .map((item) => (typeof item?.msg === "string" ? item.msg.trim() : ""))
-      .filter(Boolean);
-    if (messages.length) return messages.join(" ");
+export function previewErrorMessage(status, _detail) {
+  if (status === 422) {
+    return "Those selections need engineering review. Adjust an answer or send the project details below.";
+  }
+  if (status === 429) {
+    return "Too many recommendation checks were requested. Please wait a moment and try again.";
   }
   return PREVIEW_FALLBACK;
 }

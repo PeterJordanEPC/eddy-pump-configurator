@@ -41,10 +41,17 @@ test("parsePreviewResponse rejects malformed successful responses", () => {
   }
 });
 
-test("previewErrorMessage describes preview failure without implying submission", () => {
+test("previewErrorMessage maps status without exposing arbitrary server details", () => {
   assert.equal(
-    previewErrorMessage(undefined),
+    previewErrorMessage(undefined, "database hostname leaked"),
     "We couldn't verify a preliminary recommendation right now. You can still send your project for engineering review below.",
   );
-  assert.equal(previewErrorMessage("Unsupported combination"), "Unsupported combination");
+  assert.equal(
+    previewErrorMessage(422, "Unsupported combination: internal rule X"),
+    "Those selections need engineering review. Adjust an answer or send the project details below.",
+  );
+  assert.equal(
+    previewErrorMessage(429, "private limiter details"),
+    "Too many recommendation checks were requested. Please wait a moment and try again.",
+  );
 });

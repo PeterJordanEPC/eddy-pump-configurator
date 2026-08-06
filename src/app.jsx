@@ -1,17 +1,13 @@
 
 import { clearAnswersFromTrack, filterQuestionOptions } from "./flow-state.mjs";
 import { parsePreviewResponse, previewErrorMessage, shouldShowLeadCapture } from "./preview-state.mjs";
+import { createRequestDeadline, parseSubmissionResponse, submissionErrorMessage } from "./submission-state.mjs";
 
 const { useState, useEffect, useRef } = React;
 const API_BASE = "https://api-production-1940.up.railway.app";
 const newIdempotencyKey = () => `web:${window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 const validName = (value) => value.trim().length >= 2;
 const validEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-const apiErrorMessage = (detail) => {
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return detail.map((item) => item.msg).filter(Boolean).join(" ");
-  return "We couldn't send your configuration. Please review the fields and try again.";
-};
 
 /* ============================================================
    EDDY PUMP — GUIDED PUMP & DREDGE CONFIGURATOR (PROTOTYPE)
@@ -341,6 +337,7 @@ function EddyConfigurator() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submissionId, setSubmissionId] = useState("");
+  const [submittedEmail, setSubmittedEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [recommendation, setRecommendation] = useState(null);
   const [previewStatus, setPreviewStatus] = useState("idle");
@@ -352,6 +349,8 @@ function EddyConfigurator() {
   const quoteRef = useRef(null);
   const lastPayloadSignatureRef = useRef(null);
   const hasTransitionedRef = useRef(false);
+  const submissionAttemptRef = useRef(0);
+  const submissionRequestRef = useRef(null);
 
   const track = buildTrack(answers);
   const currentQid = track[stepIdx];
@@ -371,7 +370,7 @@ function EddyConfigurator() {
     }
     headingRef.current?.focus({ preventScroll: true });
     stepTopRef.current?.scrollIntoView({ block: "start" });
-  }, [stepIdx, done, submitted, previewStatus]);
+  }, [stepIdx, done, submitted]);
 
   useEffect(() => {
     if (!done) {
@@ -382,7 +381,7 @@ function EddyConfigurator() {
       return undefined;
     }
 
-    const controller = new AbortController();
+    const deadline = createRequestDeadline(15000);
     setRecommendation(null);
     setPreviewStatus("loading");
     setPreviewError("");
@@ -390,23 +389,32 @@ function EddyConfigurator() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ answers: apiAnswers(answers) }),
-      signal: controller.signal,
+      signal: deadline.signal,
     })
       .then(async (response) => {
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(previewErrorMessage(result.detail));
+        if (!response.ok) throw new Error(previewErrorMessage(response.status, result.detail));
         const verified = parsePreviewResponse(result);
         setRecommendation(verified.recommendation);
         setRulesVersion(verified.rules_version);
         setPreviewStatus("ready");
       })
       .catch((error) => {
-        if (error.name === "AbortError") return;
-        const detail = error instanceof TypeError ? undefined : error.message;
-        setPreviewError(previewErrorMessage(detail));
+        if (error.name === "AbortError" && !deadline.timedOut()) return;
+        if (deadline.timedOut()) {
+          setPreviewError("The recommendation check took too long. You can retry it or send your project for engineering review below.");
+          setPreviewStatus("error");
+          return;
+        }
+        const safeMessage = error instanceof TypeError ? previewErrorMessage() : error.message;
+        setPreviewError(safeMessage || previewErrorMessage());
         setPreviewStatus("error");
-      });
-    return () => controller.abort();
+      })
+      .finally(() => deadline.clear());
+    return () => {
+      deadline.clear();
+      deadline.abort();
+    };
   }, [done, answers, previewAttempt]);
 
   const goToQuote = () => {
@@ -440,7 +448,15 @@ function EddyConfigurator() {
     advance({ ...answers, material: "other", materialOther: otherText.trim() });
   };
 
+  const cancelSubmission = () => {
+    submissionAttemptRef.current += 1;
+    submissionRequestRef.current?.abort();
+    submissionRequestRef.current = null;
+    setSubmitting(false);
+  };
+
   const back = () => {
+    cancelSubmission();
     const targetIdx = done ? track.length - 1 : stepIdx - 1;
     if (targetIdx < 0) return;
 
@@ -459,10 +475,12 @@ function EddyConfigurator() {
     }
     setDone(false);
     setSubmitted(false);
+    setSubmittedEmail("");
     setStepIdx(targetIdx);
   };
 
   const restart = () => {
+    cancelSubmission();
     setAnswers({});
     setStepIdx(0);
     setDone(false);
@@ -475,6 +493,7 @@ function EddyConfigurator() {
     setWebsite("");
     setSubmitError("");
     setSubmissionId("");
+    setSubmittedEmail("");
     setIdempotencyKey(newIdempotencyKey());
     lastPayloadSignatureRef.current = null;
   };
@@ -516,20 +535,37 @@ function EddyConfigurator() {
 
     setSubmitting(true);
     setSubmitError("");
+    submissionRequestRef.current?.abort();
+    const deadline = createRequestDeadline(20000);
+    submissionRequestRef.current = deadline;
+    const attempt = ++submissionAttemptRef.current;
     try {
       const response = await fetch(`${API_BASE}/v1/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idempotency_key: requestKey, ...submissionData }),
+        signal: deadline.signal,
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(apiErrorMessage(result.detail));
-      setSubmissionId(result.id || "");
+      if (!response.ok) throw new Error(submissionErrorMessage(response.status, result.detail));
+      const receipt = parseSubmissionResponse(result);
+      if (attempt !== submissionAttemptRef.current) return;
+      setSubmissionId(receipt.id);
+      setSubmittedEmail(submissionData.customer.email);
       setSubmitted(true);
     } catch (error) {
-      setSubmitError(error.message || "Submission failed. Please try again.");
+      if (attempt !== submissionAttemptRef.current) return;
+      if (error.name === "AbortError" && deadline.timedOut()) {
+        setSubmitError("The request took too long to confirm. Please retry; the same request reference will prevent a duplicate.");
+      } else if (error.name !== "AbortError") {
+        setSubmitError(error.message || "Submission failed. Please try again.");
+      }
     } finally {
-      setSubmitting(false);
+      deadline.clear();
+      if (attempt === submissionAttemptRef.current) {
+        submissionRequestRef.current = null;
+        setSubmitting(false);
+      }
     }
   };
 
@@ -568,7 +604,7 @@ function EddyConfigurator() {
         .stepNav { min-height:48px; display:flex; align-items:center; margin:0 0 16px; }
         .eyebrow { font-family:'IBM Plex Mono'; font-size:13px; letter-spacing:0.2em; color: var(--orange); margin-bottom: 10px; }
         h1.q { color: var(--blue); font-family:'Barlow Condensed'; font-weight:600; font-size: clamp(34px, 4.5vw, 48px); line-height:1.08; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.015em; }
-        h1.q:focus, h2.fam:focus { outline:none; }
+        h1.q:focus, h1.fam:focus { outline:none; }
         .sub { color: #445468; font-size: 18px; line-height:1.5; margin: 0 0 22px; max-width: 58ch; }
         .selectionHelp { color:var(--paper); font-size:16px; font-weight:600; margin:0 0 14px; }
 
@@ -615,7 +651,7 @@ function EddyConfigurator() {
         .resultCard { display:grid; grid-template-columns:minmax(220px,34%) minmax(0,1fr); align-items:stretch; background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--orange); padding: 0; }
         .resultCard .cardArt { width:100%; height:100%; max-height:300px; align-self:center; border-right:1px solid var(--line); border-bottom:0; aspect-ratio:auto; object-fit:contain; background:#FFFFFF; }
         .resultBody { padding: 22px 26px 26px; }
-        h2.fam { color: var(--blue); font-family:'Barlow Condensed'; font-weight:700; font-size: 36px; line-height:1.1; margin: 0 0 8px; text-transform:uppercase; letter-spacing:0.02em; }
+        h1.fam { color: var(--blue); font-family:'Barlow Condensed'; font-weight:700; font-size: 36px; line-height:1.1; margin: 0 0 8px; text-transform:uppercase; letter-spacing:0.02em; }
         .blurb { color:#3E4F63; line-height: 1.55; margin: 0 0 16px; font-size: 17px; }
         .speclist { display:flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
         .chip { font-family:'IBM Plex Mono'; font-size: 13px; letter-spacing:0.03em; border: 1px solid var(--line); color:#445468; padding: 8px 11px; }
@@ -636,6 +672,8 @@ function EddyConfigurator() {
         .fields input:focus-visible, .fields textarea:focus-visible { outline:3px solid rgba(242,106,33,.22); outline-offset:1px; border-color: var(--orange); }
         .mainNotes { grid-column:1 / -1; }
         .submitError { margin-top:12px; padding:12px 14px; border-left:3px solid #B42318; background:#FFF1F0; color:#8A1C13; font-size:15px; line-height:1.45; }
+        .privacyNotice { margin:14px 0 0; color:#526477; font-size:14px; line-height:1.5; }
+        .privacyNotice a { color:var(--blue); font-weight:600; }
         .honeypot { position:absolute !important; left:-10000px !important; width:1px !important; height:1px !important; overflow:hidden !important; }
         .cta { margin-top: 16px; background: var(--orange); border:none; color:#FFFFFF; font-family:'Barlow Condensed'; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; font-size:18px; min-height:52px; padding:14px 28px; cursor:pointer; }
         .cta:disabled { opacity: 0.45; cursor: default; }
@@ -691,7 +729,7 @@ function EddyConfigurator() {
           .successIcon { width:66px; height:66px; font-size:40px; }
           .successMessage { font-size:18px; }
           .successAction { width:100%; }
-          h2.fam { font-size:32px; }
+          h1.fam { font-size:32px; }
           .cta, .quoteJump { width:100%; }
           .projectGrid { grid-template-columns:1fr; }
           .projectGrid .notes { grid-column:auto; }
@@ -810,7 +848,7 @@ function EddyConfigurator() {
               <div className="resultCard" role="status" aria-live="polite">
                 <CardImage kind={recommendationArt} />
                 <div className="resultBody">
-                  <h2 className="fam" ref={headingRef} tabIndex="-1">{rec.family}</h2>
+                  <h1 className="fam" ref={headingRef} tabIndex="-1">{rec.family}</h1>
                   <div className="speclist">
                     {rec.specs.map((s) => <span key={s} className="chip">{s}</span>)}
                   </div>
@@ -873,8 +911,12 @@ function EddyConfigurator() {
                       </details>
                       <label className="honeypot" aria-hidden="true">Website<input tabIndex="-1" autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
                     </div>
+                    <p className="privacyNotice">
+                      We use your information to respond to this project request. See EDDY Pump’s{" "}
+                      <a href="https://eddypump.com/privacy-policy/" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+                    </p>
                     {submitError && <div className="submitError" role="alert">{submitError}</div>}
-                    <button className="cta" type="submit" disabled={!validName(lead.name) || !validEmail(lead.email) || submitting}>
+                    <button className="cta" type="submit" disabled={submitting} onClick={() => setTouched({ name: true, email: true })}>
                       {submitting ? "Sending securely…" : "Submit my pricing request"}
                     </button>
                   </form>
@@ -897,7 +939,7 @@ function EddyConfigurator() {
                 An Eddy Pump Sales Engineer will review your configuration and engineering details,
                 then contact you to confirm the right equipment and project pricing.
               </p>
-              {lead.email && <p className="successFollowup">We’ll follow up at <strong>{lead.email}</strong>.</p>}
+              {submittedEmail && <p className="successFollowup">We’ll follow up at <strong>{submittedEmail}</strong>.</p>}
               {submissionId && <div className="successReference">REFERENCE: {submissionId}</div>}
               <div><button className="successAction" type="button" onClick={restart}>Start a new configuration</button></div>
             </section>

@@ -5,6 +5,14 @@ const index = readFileSync("index.html", "utf8");
 const source = readFileSync("src/app.jsx", "utf8");
 const bundle = readFileSync("app.js", "utf8");
 const readme = readFileSync("README.md", "utf8");
+const backStart = source.indexOf("const back =");
+const backEnd = source.indexOf("const restart =", backStart);
+const backSource = backStart >= 0 && backEnd > backStart
+  ? source.slice(backStart, backEnd)
+  : "";
+const externalScripts = [...index.matchAll(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>/gi)]
+  .map((match) => match[0])
+  .filter((tag) => /\bsrc=["']https?:\/\//i.test(tag));
 const approvedPhotoFiles = [
   "dredging.jpg", "process.jpg", "sand.jpg", "sludge.jpg", "tailings.jpg",
   "debris.jpg", "other.jpg", "electric.jpg", "excavator.jpg", "cable.jpg",
@@ -13,12 +21,12 @@ const approvedPhotoFiles = [
 
 const checks = [
   [!index.includes("text/babel") && !index.includes("@babel/standalone"), "runtime Babel removed"],
-  [index.includes("Content-Security-Policy"), "CSP meta present"],
-  [index.includes("integrity=\"sha384-"), "third-party scripts use SRI"],
+  [index.includes("Content-Security-Policy") && index.includes("default-src 'self'") && index.includes("object-src 'none'"), "restrictive CSP meta present"],
+  [externalScripts.length > 0 && externalScripts.every((tag) => /\bintegrity=["']sha384-/.test(tag) && /\bcrossorigin=["']anonymous["']/.test(tag)), "every third-party script uses SRI"],
   [index.includes("images/eddy-pump-corporation-logo.webp") || source.includes("images/eddy-pump-corporation-logo.webp"), "local corporate logo used"],
   [source.includes('window.location.protocol !== "https:"'), "HTTPS submission guard present"],
   [source.includes("validEmail") && !source.includes("consent"), "email validation present without a separate confirmation field"],
-  [/if \(done\) \{[\s\S]*?setIdempotencyKey\(newIdempotencyKey\(\)\);[\s\S]*?setDone\(false\);[\s\S]*?return;/.test(source), "changed answers receive a fresh idempotency key"],
+  [backSource.includes("if (done)") && backSource.includes("setIdempotencyKey(newIdempotencyKey());") && backSource.indexOf("setIdempotencyKey(newIdempotencyKey());") < backSource.indexOf("setDone(false);"), "changed answers receive a fresh idempotency key"],
   [source.includes('htmlFor="other-material"') && source.includes('id="other-material"'), "other-material input has an associated label"],
   [source.includes('const SELECT_QUESTION_IDS = new Set(["production_dredge", "flow_pump"]);') && source.includes('<select id="flow-rate-selection"'), "dredge and pump flow questions use a compact dropdown"],
   [source.includes('["application", "material", "deployment_dredge", "production_dredge"]') && source.includes('if (a.deployment !== "excavator") t.push("power")') && source.includes('next.power = "hydraulic"'), "deployment precedes production and excavator selection fixes hydraulic power"],
@@ -55,7 +63,7 @@ const checks = [
   [source.includes("Submit my pricing request") && source.includes("Request fast project pricing ↓") && source.includes("fast, engineering-reviewed project pricing") && !/instant (price|quote)/i.test(source), "quote CTAs are benefit-led without promising instant firm pricing"],
   [source.includes("Project notes") && source.indexOf("Project notes") < source.indexOf('<details className="projectDetails">'), "Project notes is always visible before optional engineering details"],
   [!source.includes("consentRow") && !source.includes("setConsent") && !source.includes("consent: true") && source.includes("Submit my pricing request"), "submission remains deliberate without a fabricated consent value"],
-  [!["submissionNotice", "formHelp", "formReassurance", "secureNote", "By submitting, you ask EDDY Pump", "Name and a valid work email are required", "No payment required", "ENGINEERING REVIEW REQUIRED"].some((copy) => source.includes(copy)), "entire pre-submit disclosure and reassurance block is removed"],
+  [!["consentRow", "setConsent", "consent: true", "No payment required", "ENGINEERING REVIEW REQUIRED"].some((copy) => source.includes(copy)) && source.includes("privacy-policy"), "privacy disclosure is present without fabricated consent or sales claims"],
   [source.includes('className="successScreen"') && source.includes("PRICING REQUEST RECEIVED") && source.includes("Eddy Pump Sales Engineer") && !source.includes("EDDY Pump specialist") && source.includes("!submitted && <aside"), "successful submission replaces recommendation and summary with a prominent sales-engineer confirmation"],
   [source.includes("font-size:16px; min-height:48px"), "form controls are sized for older users"],
   [source.includes("--orange: #B94708") && source.includes("border:1px solid #7A8AA0") && source.includes("grid-template-columns:112px minmax(0,1fr)"), "mobile cards are compact and text/control contrast meets accessibility targets"],
@@ -80,10 +88,11 @@ const checks = [
     "dredge deployment excludes remote-operated and mini-auger options",
   ],
   [
-    !source.slice(source.indexOf("function recommend"), source.indexOf("function labelFor")).includes('diesel')
-      && !source.slice(source.indexOf("function recommend"), source.indexOf("function labelFor")).includes('remote')
-      && !source.slice(source.indexOf("function recommend"), source.indexOf("function labelFor")).includes('auger'),
-    "browser recommendation logic excludes removed configuration values",
+    !source.includes("function recommend(")
+      && !source.includes('{ id: "diesel"')
+      && !source.includes('{ id: "remote"')
+      && !source.includes('{ id: "auger"'),
+    "browser has no recommendation engine or removed configuration options",
   ],
   [
     !source.includes("Subdredge")
