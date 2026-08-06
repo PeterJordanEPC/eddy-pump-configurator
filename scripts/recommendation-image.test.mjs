@@ -32,6 +32,13 @@ test("mobile recommendation keeps the full image in a short frame", () => {
   );
 });
 
-test("selection card photos retain their compact crop", () => {
+test("desktop selection card photos retain their compact crop", () => {
   assert.match(source, /\.cardPhoto \{[^}]*aspect-ratio:\s*160\/115;[^}]*object-fit:\s*cover;/);
+});
+
+test("mobile selection card photos show the complete equipment", () => {
+  assert.match(
+    source,
+    /@media \(max-width:\s*620px\)[\s\S]*?\.card \.cardPhoto \{[^}]*object-fit:\s*contain;[^}]*background:\s*#FFFFFF;/,
+  );
 });

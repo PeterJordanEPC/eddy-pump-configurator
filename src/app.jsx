@@ -678,6 +678,7 @@ function EddyConfigurator() {
           .grid { gap:12px; }
           .card { display:grid; grid-template-columns:112px minmax(0,1fr); grid-template-rows:auto auto 1fr; min-height:138px; padding:0; }
           .card .cardArt { grid-column:1; grid-row:1 / 4; width:112px; height:100%; min-height:138px; object-fit:cover; border-right:1px solid var(--line); border-bottom:none; }
+          .card .cardPhoto { object-fit:contain; background:#FFFFFF; }
           .card h3 { grid-column:2; grid-row:1; margin:14px 14px 3px; font-size:21px; }
           .card p { grid-column:2; grid-row:2; margin:0 14px; font-size:15px; line-height:1.4; }
           .cardCue { grid-column:2; grid-row:3; align-self:end; padding:10px 14px 13px; font-size:12px; }
